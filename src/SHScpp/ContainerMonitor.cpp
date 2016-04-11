@@ -53,9 +53,15 @@ void ContainerMonitor::manageActCmd(){
 					//just keep the command, do not remove or do not change, as it should keep forever
 					it++;
 				}else{
-					Log::log.warning("ContainerMonitor: one command timeout:%s\n",(*it)->getRabbitMQMsg()["type"].asCString());
+					//just meaning time up. not really time out
+					//Log::log.warning("ContainerMonitor: one command timeout:%s\n",(*it)->getRabbitMQMsg()["type"].asCString());
 					(*it)->_onTimeOut();
-			        it = cmds.erase(it);
+					//remove the cmd object if its cmdTTL is marked as CMD_FINISHED_TTL_MARK
+					if(cmdTTL==Cmd::CMD_FINISHED_TTL_MARK) {
+						//the command is really time out, warn and remove it!
+						Log::log.warning("ContainerMonitor: one command timeout:%s\n",(*it)->getRabbitMQMsg()["type"].asCString());
+						it = cmds.erase(it);
+					}
 				}
 			}
 

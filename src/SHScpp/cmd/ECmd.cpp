@@ -14,13 +14,13 @@ namespace SHS {
 void ZB_onoff::onRabbitMQReceive(){
 	Log::log.debug("ZB_onoff::onRabbitMQReceive rabbitMQ message received received\n");
 	this->setTTL(2000);//give command 2 seconds time to live, if no response in 2 seconds, it will time out
-	string atCmd("AT+RONOFF:16DC,1,0,");
+	string atCmd("AT+RONOFF:56CB,1,0,");
 	this->sendATCmd(atCmd);
 
 }
 void ZB_onoff::onTimeOut(){
 	Log::log.debug("ZB_onoff::onTimeOut command timeout\n");
-	cmdFinish();//alow next command
+	cmdFinish();//alow next command and remove it from active cmd object list
 }
 void ZB_onoff::onATReceive(){
 	Log::log.debug("ZB_onoff::onATReceive AT command received [%s]\n",this->ATMsg.c_str());

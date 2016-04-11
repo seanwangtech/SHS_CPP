@@ -23,9 +23,9 @@ class Cmd {
 public:
 	Cmd();
 	virtual ~Cmd();
-	virtual void onRabbitMQReceive()=0;//this function need be overrided by extended command, and the container is locked for this function, so the function can full use the container
+	virtual void onRabbitMQReceive(){};//this function need be overrided by extended command, and the container is locked for this function, so the function can full use the container
 	virtual void onTimeOut()=0;//this function need be overrided by extended command, and the container is locked for this function, so the function can full use the container
-	virtual void onATReceive()=0;//this function need be overrided by extended command, and the container is locked for this function, so the function can full use the container
+	virtual void onATReceive(){};//this function need be overrided by extended command, and the container is locked for this function, so the function can full use the container
 	void waitCmdFinish(pthread_mutex_t * pMutex);
 	void cmdFinish();
 	void setContainer(Container * container);
@@ -33,7 +33,9 @@ public:
 	void _onATReceive(std::string& Msg);
 	void _onTimeOut();
 	void sendRMsg(std::string& defaultKeyAppendix);
+	void sendRMsg(const char* defaultKeyAppendix);
 	void sendATCmd(std::string& ATCmd);
+	void sendATCmd(const char* ATCmd);
 	std::string& getATMsg();
 	Json::Value & getRabbitMQMsg();
 	void setTTL(int ms);
@@ -63,6 +65,24 @@ namespace SHS{
 			return (void*)(&obj);							\
 		};											    	\
 		static bool _##class_name##_Unused __attribute__((unused))= ClassFactoryInstance().AddObject(#class_name, CreateClass##class_name);
+
+}
+
+namespace SHS{
+
+//this class is for initial the special command object
+SHS_CMD_CLASS_CREATE(Delay_init_cmdobj,{
+public:
+		void onTimeOut();
+});
+
+
+SHS_CMD_CLASS_CREATE(ZB_startup_discover,{
+public:
+		void onTimeOut();
+		void onATReceive();
+});
+
 
 
 

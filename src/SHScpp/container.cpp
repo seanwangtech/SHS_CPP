@@ -16,6 +16,7 @@ Container::Container():
 		pRabbitMQSenderMQ(NULL),
 		pConf(NULL){
 	pthread_mutex_init(&this->containersMutex,NULL);
+	this->delayInitCmdObj();
 }
 
 Container::~Container() {
@@ -30,6 +31,10 @@ Cmd* Container::getCmdObj(std::string & objName){
 	}
 }
 
+Cmd* Container::getCmdObj(const char* objName){
+	std::string objName_str(objName);
+	return this->getCmdObj(objName_str);
+}
 void Container::regActCmd(Cmd* cmdObj){
 	//remove all the cmdObj which equal cmdObj,if not exist, remove nothing.
 	if(cmdObj){
@@ -69,5 +74,16 @@ void Container::lockContainer(){
 }
 void Container::unlockContainer(){
 	pthread_mutex_unlock(&this->containersMutex);
+}
+void Container::delayInitCmdObj(){
+
+	Cmd* cmdObj;
+	this->lockContainer();
+
+	cmdObj=this->getCmdObj("Delay_init_cmdobj");
+	cmdObj->setTTL(200);//set time out 0.2 seconds
+	this->regActCmd(cmdObj);
+
+	this->unlockContainer();
 }
 } /* namespace SHS */

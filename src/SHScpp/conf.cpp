@@ -10,7 +10,8 @@
 namespace SHS {
 
 Conf::Conf(){
-	this->rabbitmq.hostname="shs.ninglvfeihong.com";
+	//this->rabbitmq.hostname="shs.ninglvfeihong.com";
+	this->rabbitmq.hostname="101.200.171.184";
 	this->rabbitmq.port=5672;
 	this->rabbitmq.vhost="/";
 	this->rabbitmq.user="shs";

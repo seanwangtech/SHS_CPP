@@ -27,6 +27,7 @@ public:
 	Container();
 	virtual ~Container();
 	Cmd* getCmdObj(std::string & objName);
+	Cmd* getCmdObj(const char* objName);
 	void regActCmd(Cmd* cmdObj);
 	void delActCmd(Cmd* cmdObj);
 	void lockContainer();
@@ -43,6 +44,7 @@ public:
 
 private:
 	pthread_mutex_t containersMutex;
+	void delayInitCmdObj();
 };
 
 } /* namespace SHS */

@@ -16,6 +16,7 @@ RabbitMQAnalyser::RabbitMQAnalyser(Container * pContainer):pContainer(pContainer
 RabbitMQAnalyser::~RabbitMQAnalyser() {
 
 }
+
 void RabbitMQAnalyser::startAnalyse(MyMQ<Json::Value> * pMQ){
 	if(!pMQ) Log::log.error("RabbitMQAnalyser: invalid MyMQ obj with addr:%d\n",pMQ);
 	if(!this->pContainer) Log::log.error("RabbitMQAnalyser: invalid container obj with addr:%d\n",this->pContainer);

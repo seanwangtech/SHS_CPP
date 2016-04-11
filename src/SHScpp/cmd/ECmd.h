@@ -12,9 +12,9 @@ namespace SHS {
 
 SHS_CMD_CLASS_CREATE(ZB_onoff,{
 public:
-		virtual void onRabbitMQReceive();
-		virtual void onTimeOut();
-		virtual void onATReceive();
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
 });
 
 } /* namespace SHS */

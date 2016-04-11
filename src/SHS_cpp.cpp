@@ -16,6 +16,7 @@ void test_json();
 void test_rabbitMQAnalyser();
 void test_ContainerMonitor();
 void test_ATAnalyser();
+void test_Regex();
 void test_basicSystemWithoutNAT();
 using namespace std;
 int main(int argc,char *argv[]){
@@ -28,6 +29,7 @@ int main(int argc,char *argv[]){
 	//test_rabbitMQAnalyser();
 	//test_ContainerMonitor();
 	//test_ATAnalyser();
+	//test_Regex();
 	test_basicSystemWithoutNAT();
 /*
 	pthread_t listen_thread,listen_thread1;
@@ -188,6 +190,20 @@ void test_ATAnalyser(){
 		cin>>str;
 		serial.directSend(str);
 	}
+}
+void test_Regex(){
+
+    std::string text("abc abd");
+    boost::regex regex("ab(.)");
+
+    boost::sregex_iterator iter(text.begin(), text.end(), regex);
+    boost::sregex_iterator end;
+
+    for( ; iter != end; ++iter ) {
+    	//boost::smatch const &what = *iter;
+        std::cout<<(*iter)[1]<<'\n';
+    }
+
 }
 void test_basicSystemWithoutNAT(){
 	//create configure object
