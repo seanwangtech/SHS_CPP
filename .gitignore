@@ -1,3 +1,7 @@
+# self defined
+Debug
+Cross
+Release
 # Compiled Object files
 *.slo
 *.lo
