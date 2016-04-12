@@ -39,5 +39,27 @@ void ZB_onoff::onATReceive(){
 }
 
 
+void ZB_initdiscover::onRabbitMQReceive(){
+	this->sendATCmd("AT+DISCOVER:");
+}
+void ZB_initdiscover::onATReceive(){
+
+	//DEV:56CB,01,ENABLED
+	//Log::log.debug("ZB_startup_discover::oATReceive[%s]\n",this->ATMsg.c_str());
+	boost::regex expr("DEV:(\\w{4}),(\\w{2}),ENABLED");
+	boost::sregex_iterator iter(this->ATMsg.begin(), this->ATMsg.end(), expr);
+	boost::sregex_iterator end;
+	for( ; iter != end; ++iter ) {
+	    boost::smatch const &what = *iter;
+	    std::cout<<(*iter)[1]<<'\n';
+		std::cout<<"ZB_startup_discover:discover:"<<what[0]<<std::endl;
+	}
+}
+void ZB_initdiscover::onTimeOut(){
+	this->setTTL(2500);
+	Log::log.debug("ZB_startup_discover::onTimeOut\n");
+	cmdFinish();//indicate command finished
+}
+
 
 } /* namespace SHS */

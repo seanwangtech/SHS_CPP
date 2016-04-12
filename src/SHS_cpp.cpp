@@ -246,6 +246,7 @@ void test_basicSystemWithoutNAT(){
 	container.setLookup(NULL);
 	container.setRabbitMQSenderMQ(&rabbitSMQ);
 	container.setSerialSenderMQ(&serialSMQ);
+	container.setRabbitMQAnalyserMQ(&rabbitRMQ);
 
 	//start the rabbitMQ analyser
 	SHS::RabbitMQAnalyser analyser(&container);

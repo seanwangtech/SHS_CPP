@@ -93,18 +93,35 @@ void Cmd::sendATCmd(const char* ATCmd){
 	this->sendATCmd(atCmd);
 }
 
+void Cmd::sendToRabbitMQAnalyser(Json::Value & Msg){
+	if(this->container->pRabbitMQAnalyserMQ){
+		this->container->pRabbitMQAnalyserMQ->sendMSG(Msg);
+	}else{
+		Log::log.error("sendToRabbitMQAnalyser: the necessary MyMQ invalid, did you forget container.setRabbitMQAnalyserMQ()");
+	}
+}
+void Cmd::sendToRabbitMQAnalyser(std::string & cmdType){
+	Json::Value Msg;
+	Msg["type"] = cmdType+".req";
+	this->sendToRabbitMQAnalyser(Msg);
+}
+void Cmd::sendToRabbitMQAnalyser(const char* cmdType){
+	std::string str(cmdType);
+	this->sendToRabbitMQAnalyser(str);
+}
 }
 
 namespace SHS{
 
 void Delay_init_cmdobj::onTimeOut(){
-	Cmd * cmdObj;
+	/*Cmd * cmdObj;
 
-	cmdObj=this->container->getCmdObj("ZB_startup_discover");
+	cmdObj=this->container->getCmdObj("ZB_init_discover");
 	cmdObj->setTTL(2500); //time out in 2.5 seconds
 	cmdObj->sendATCmd("AT+DISCOVER:");
 	this->container->regActCmd(cmdObj);
 
+	*/
 	/*
 	 * before sending next ATcommand, we may need sleep some time (1ms or 10ms or more according to the command type)
 	 * to make sure that previous command has enough time to be fetched or copied by ZigBee dongle (because the UART buffer is really limited at only 128 Bytes).
@@ -112,27 +129,10 @@ void Delay_init_cmdobj::onTimeOut(){
 	 */
 	//usleep(20000);
 
+	//start-up discover help to built NAT talbe
+	this->sendToRabbitMQAnalyser("ZB.initdiscover");
 	this->cmdFinish();
 
-}
-
-void ZB_startup_discover::onATReceive(){
-
-	//DEV:56CB,01,ENABLED
-	//Log::log.debug("ZB_startup_discover::oATReceive[%s]\n",this->ATMsg.c_str());
-	boost::regex expr("DEV:(\\w{4}),(\\w{2}),ENABLED");
-	boost::sregex_iterator iter(this->ATMsg.begin(), this->ATMsg.end(), expr);
-	boost::sregex_iterator end;
-	for( ; iter != end; ++iter ) {
-	    boost::smatch const &what = *iter;
-	    std::cout<<(*iter)[1]<<'\n';
-		std::cout<<"ZB_startup_discover:discover:"<<what[0]<<std::endl;
-	}
-}
-void ZB_startup_discover::onTimeOut(){
-	this->setTTL(2500);
-	Log::log.debug("ZB_startup_discover::onTimeOut\n");
-	cmdFinish();//indicate command finished
 }
 
 

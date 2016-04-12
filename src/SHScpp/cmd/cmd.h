@@ -36,6 +36,9 @@ public:
 	void sendRMsg(const char* defaultKeyAppendix);
 	void sendATCmd(std::string& ATCmd);
 	void sendATCmd(const char* ATCmd);
+	void sendToRabbitMQAnalyser(Json::Value & Msg);
+	void sendToRabbitMQAnalyser(std::string & cmdType);
+	void sendToRabbitMQAnalyser(const char* cmdType);
 	std::string& getATMsg();
 	Json::Value & getRabbitMQMsg();
 	void setTTL(int ms);
@@ -70,20 +73,28 @@ namespace SHS{
 
 namespace SHS{
 
-//this class is for initial the special command object
+/*
+ * this class is dedicated for initial the special command object
+ * this class is not invoked by Analyser, thus some functionality of this command object will be restricted.
+ * this small inconvenient feature may be fixed in the future, but currently:
+ * Please do not use below function:
+ * 	this->sendATCmd(): In current AT command version, we cannot send next AT command before the previous Cmd obj is fully tackled.
+ * 		thus UART sender is exclusively managed by an Analyser which initialise a Cmd Obj and active it and other thread will do below tasks:
+ * 				monitors:monitor the time execution (active) time of this command (onTimeOut)
+ * 				ANAnalyser: receive UART reply and invoked onATReceive function in this Cmd Obj
+ *
+ *
+ * In a word: just take this class as a normal initial process rather than a Cmd Obj!!!!!!!!!
+ *
+ * In this class:
+ * this->sendToRabbitMQAnalyser() is highly recommended when want to using serial port. You may create a Cmd object and deal with UART relate thing in it.
+ * this->sendToRabbitMQAnalyser() also allows re-analyse a message come from rabbitMQ server
+ */
+
 SHS_CMD_CLASS_CREATE(Delay_init_cmdobj,{
 public:
 		void onTimeOut();
 });
-
-
-SHS_CMD_CLASS_CREATE(ZB_startup_discover,{
-public:
-		void onTimeOut();
-		void onATReceive();
-});
-
-
 
 
 } /* namespace SHS */

@@ -36,10 +36,12 @@ public:
 	void setSerialSenderMQ(MyMQ<std::string>* pSerialSenderMQ);
 	void setConf(Conf* pConf);
 	void setRabbitMQSenderMQ(MyMQ<Json::Value> * pRabbitMQSenderMQ);
+	void setRabbitMQAnalyserMQ(MyMQ<Json::Value> * pRabbitMQAnalyserMQ);
 	std::list<Cmd *> actCmds;
 	Lookup *pLookup;
 	MyMQ<std::string>* pSerialSenderMQ;
 	MyMQ<Json::Value> * pRabbitMQSenderMQ;
+	MyMQ<Json::Value> * pRabbitMQAnalyserMQ;
 	Conf* pConf;
 
 private:

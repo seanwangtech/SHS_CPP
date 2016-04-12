@@ -14,6 +14,7 @@ Container::Container():
 		pLookup(NULL),
 		pSerialSenderMQ(NULL),
 		pRabbitMQSenderMQ(NULL),
+		pRabbitMQAnalyserMQ(NULL),
 		pConf(NULL){
 	pthread_mutex_init(&this->containersMutex,NULL);
 	this->delayInitCmdObj();
@@ -65,6 +66,9 @@ void Container::setSerialSenderMQ(MyMQ<std::string>* pSerialSenderMQ){
 }
 void Container::setRabbitMQSenderMQ(MyMQ<Json::Value> * pRabbitMQSenderMQ){
 	this->pRabbitMQSenderMQ =pRabbitMQSenderMQ;
+}
+void Container::setRabbitMQAnalyserMQ(MyMQ<Json::Value> * pRabbitMQAnalyserMQ){
+	this->pRabbitMQAnalyserMQ = pRabbitMQAnalyserMQ;
 }
 void Container::setConf(Conf* pConf){
 	this->pConf = pConf;

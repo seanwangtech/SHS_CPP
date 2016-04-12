@@ -17,6 +17,13 @@ public:
 		void onATReceive();
 });
 
+SHS_CMD_CLASS_CREATE(ZB_initdiscover,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+});
+
 } /* namespace SHS */
 
 #endif /* SHSCPP_CMD_ECMD_H_ */
