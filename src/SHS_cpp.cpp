@@ -206,9 +206,23 @@ void test_Regex(){
 
 }
 void test_basicSystemWithoutNAT(){
+	/*
+	 * the bootstrap should include four sessions orderly!
+	 * 1. configure the configuration file
+	 * 2. start connections both to RabbitMQ and to serial port
+	 * 3. create a container for the analyser as workspace
+	 * 4. start analysers and monitors
+	 */
+
+	/****************************************************************************************************
+	 * session 1. configure the configuration file
+	 */
 	//create configure object
 	SHS::Conf &conf= *new SHS::Conf();
 
+	/****************************************************************************************************
+	 * session 2. start connections both to RabbitMQ and to serial port
+	 */
 	/*
 	 * start rabbiMQ receiver and sender based on the connection and send the received message to a self-defined Message Queue
 	 * according to the rabbitMQ, we can use different channels from one connection in different thread.
@@ -217,7 +231,6 @@ void test_basicSystemWithoutNAT(){
 	 * I try to create only one channel, however, it tend to die when sender gets channel from the connection occasionally, so I change it to use two connections.
 	 *
 	 */
-
 	//create a rabbitmq connection for receiver
 	SHS::RabbitMQConnection connR(conf);
 	SHS::RabbitMQReceiver receiver(connR);
@@ -240,6 +253,9 @@ void test_basicSystemWithoutNAT(){
 	serial.startSenderAsThread(&serialSMQ);
 
 
+	/****************************************************************************************************
+	 * session 3. create a container for the analyser as workspace
+	 */
 	//creat a basic container for its monitor and two analysers
 	SHS::Container container;
 	container.setConf(&conf);
@@ -248,6 +264,9 @@ void test_basicSystemWithoutNAT(){
 	container.setSerialSenderMQ(&serialSMQ);
 	container.setRabbitMQAnalyserMQ(&rabbitRMQ);
 
+	/****************************************************************************************************
+	 * session 4. start analysers and monitors
+	 */
 	//start the rabbitMQ analyser
 	SHS::RabbitMQAnalyser analyser(&container);
 	analyser.startAnalyseAsThread(&rabbitRMQ);
