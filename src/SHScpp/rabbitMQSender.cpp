@@ -30,9 +30,7 @@ void RabbitMQSender::startSend(Conf &conf,MyMQ<Json::Value>* pMQ){
 
 	while(1){
 		Json::Value msg= pMQ->getOneMSG();
-		msg["type"]=msg["token0"].asString()+"."+msg["token1"].asString()+".resp";
-		msg.removeMember("token0");
-		msg.removeMember("token1");
+		msg.removeMember("token");
 		Json::Value reply_to = msg["reply_to"];
 		if(reply_to.isNull()){
 			//default key

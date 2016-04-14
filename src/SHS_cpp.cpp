@@ -94,10 +94,20 @@ void test_json(){
 	bool status = reader.parse("{\"abc\":2}",root,false);
 	root["abd"]="abc";
 	root["abd"]=5;
+	root["dd"][0]=1;
+	root["dd"][1]=2;
+	root["dd"][2]=3;
+	root["ee"].append(1);
+	root["ee"].append(2);
+	root["ee"].append(3);
+	root["ee"].append(5);
 	if(status){
 		int a=root["abc"].asInt();
 		std::cout<<root["abc"].asInt()<<"  int:"<<a<<std::endl;
 		std::cout<<root["abd"]<<"  int:"<<root["abd"].asInt()<<std::endl;
+		std::cout<<"root[\"dd\"] size is: "<<root["dd"].size()<<std::endl;
+		std::cout<<"root[\"ee\"] size is: "<<root["ee"].size()<< root["ee"].toStyledString()<<std::endl;
+
 	}else{
 		cout<<"json parse error"<<endl;
 	}

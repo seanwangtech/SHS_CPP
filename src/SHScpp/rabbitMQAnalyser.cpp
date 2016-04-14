@@ -33,35 +33,30 @@ void RabbitMQAnalyser::startAnalyse(MyMQ<Json::Value> * pMQ){
 			if(type.isString()){
 				string type_str = type.asString();
 				std::istringstream iss(type_str);
-				std::vector<std::string> tokens;
 				std::string token;
 				while (std::getline(iss, token, '.')) {
-				    if (!token.empty())
-				        tokens.push_back(token);
+				    if (!token.empty()){
+				    	root["token"].append(token);
+				    }
 				}
-				//a message basic include 3 tokens divided by '.'
-				if(token.size()==3){
-					root["token0"]=tokens[0];
-					root["token1"]=tokens[1];
-					if(this->pContainer){
-						string cmdName = tokens[0]+"_"+tokens[1];
-						Cmd* cmdObj=this->pContainer->getCmdObj(cmdName);
-						if(cmdObj){
-							Log::log.debug("RabbitMQAnalyser: calling object:%s\n",cmdName.c_str());
-							this->pContainer->lockContainer();
-							//register the command object to the active command list, which meaning the object will keep alive to receive the serial port message
-							this->pContainer->regActCmd(cmdObj);
-							//call the onRabbitMQReceive function, which is a callback function to deal with the message further
-							cmdObj->_onRabbitMQReceive(root);
-							this->pContainer->unlockContainer();
-							//wait this command finished and then start analyse next command
-							cmdObj->waitCmdFinish(&mutex);
-						}else{
-							Log::log.warning("RabbitMQAnalyser: Unsupported message type:%s\n",type_str.c_str());
-						}
-
+				//assembling command name
+				std::string cmdName(root["token"][0].asString());
+				for(unsigned int i =1;i<root["token"].size()-1;i++)
+			    	cmdName = cmdName+"_" + root["token"][i].asCString();
+				if(this->pContainer){
+					Cmd* cmdObj=this->pContainer->getCmdObj(cmdName);
+					if(cmdObj){
+						Log::log.debug("RabbitMQAnalyser: calling object:%s\n",cmdName.c_str());
+						this->pContainer->lockContainer();
+						//register the command object to the active command list, which meaning the object will keep alive to receive the serial port message
+						this->pContainer->regActCmd(cmdObj);
+						//call the onRabbitMQReceive function, which is a callback function to deal with the message further
+						cmdObj->_onRabbitMQReceive(root);
+						this->pContainer->unlockContainer();
+						//wait this command finished and then start analyse next command
+						cmdObj->waitCmdFinish(&mutex);
 					}else{
-						Log::log.warning("RabbitMQAnalyser: no container\n");
+						Log::log.warning("RabbitMQAnalyser: Unsupported message type:%s\n",type_str.c_str());
 					}
 				}else{
 					Log::log.warning("RabbitMQAnalyser: message \"type\" attribute format error\n");
