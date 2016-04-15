@@ -50,6 +50,10 @@ protected:
 	Container* container;
 	Json::Value rabbitMQMesg;
 	std::string ATMsg;
+	int parseHex(std::string & hex_str);
+	int parseHex(const char* hex_str);
+	std::string intToHexString(int number);
+
 };
 class ActCmd{
 public:

@@ -47,6 +47,30 @@ void Cmd::setContainer(Container * container){
 void Cmd::setTTL(int ms){
 	this->_cmdTTL = ms;
 }
+
+//this function was limited use in AT command parse
+int Cmd::parseHex(std::string & hex_str){
+	int result =0;
+	for(unsigned int i =0;i<hex_str.length();i++){
+		result<<=4;
+		char ch = hex_str.data()[i];
+		if(ch <='F' && ch>='A'){
+			result|=(ch-'A' +10);
+		}else if(ch<='9' && ch>='0'){
+			result|=(ch-'0');
+		}else return -1;
+	}
+	return result;
+}int Cmd::parseHex(const char* hex_str){
+	std::string str(hex_str);
+	return this->parseHex(str);
+}
+
+std::string Cmd::intToHexString(int number){
+	std::stringstream stream;
+	stream << std::hex << number;
+	return stream.str();
+}
 void Cmd::_onRabbitMQReceive(Json::Value & Msg){
 	this->rabbitMQMesg=Msg;
 	this->onRabbitMQReceive();
@@ -130,7 +154,7 @@ void Delay_init_cmdobj::onTimeOut(){
 	//usleep(20000);
 
 	//start-up discover help to built NAT talbe
-	this->sendToRabbitMQAnalyser("ZB.initdiscover");
+	this->sendToRabbitMQAnalyser("ZB.init.discover");
 	this->cmdFinish();
 
 }
