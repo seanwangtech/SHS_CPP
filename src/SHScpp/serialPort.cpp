@@ -24,10 +24,12 @@ using std::string;
 SerialPort::SerialPort(Conf &conf):fd(0),isOpen(false),pLMQ(NULL){
 		port=conf.serialPort.port;
 		baudrate=conf.serialPort.baudrate;
+		this->openPort();
 }
 SerialPort::SerialPort(std::string &port,unsigned int baudrate):fd(0),isOpen(false),pLMQ(NULL){
 	this->port=port;
 	this->baudrate=baudrate;
+	this->openPort();
 }
 void SerialPort::openPort(){
 	fd = 0;	 /* File descriptor for the port */
@@ -114,9 +116,6 @@ SerialPort::~SerialPort() {
 }
 void SerialPort::listen(MyMQ<string> *mq){
 	this->pLMQ =mq;
-	if(!this->isOpen){
-		this->openPort();
-	}
 	while(1){
 		string serialData(this->readPort());
 		if(this->pLMQ){
@@ -135,9 +134,6 @@ void SerialPort::directSend(string & cmd){
 		//Initialise the output buffer
 	char output[cmd.length()+2];
 
-	if(!this->isOpen){
-		this->openPort();
-	}
 		//Add the control characters
 	memcpy(output,cmd.c_str(),cmd.length());
 	output[cmd.length()]='\r';
