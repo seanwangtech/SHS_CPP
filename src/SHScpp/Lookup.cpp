@@ -24,6 +24,10 @@ int Lookup::getMAC_NWK(string& MAC){
 		return it->second;
 	}
 }
+int Lookup::getMAC_NWK(const char* MAC){
+	std::string str(MAC);
+	return this->getMAC_NWK(str);
+}
 const string& Lookup::getNWK_MAC(int NWK){
 	static const string noResult;
 	if(MAC_NWK.empty()) return noResult;
@@ -60,7 +64,15 @@ void Lookup::updateMAC_NWK(std::string& MAC, int NWK){
 	MAC_NWK.erase(MAC);
 	MAC_NWK.insert(MAC_NWK.begin(),std::pair<string,int>(MAC,NWK));
 }
+
+void Lookup::updateMAC_NWK(const char* MAC, int NWK){
+	std::string str(MAC);
+	this->updateMAC_NWK(str,NWK);
+}
 void Lookup::delMAC_NWK(std::string& MAC){
+	MAC_NWK.erase(MAC);
+}
+void Lookup::delMAC_NWK(const char* MAC){
 	MAC_NWK.erase(MAC);
 }
 void Lookup::updateDevT_EP(int DevT,int EP){
@@ -79,6 +91,11 @@ bool Lookup::getMACDevT_value(std::string& MAC,int DevT,int* value){
 		}
 	}
 	return false;
+}
+
+bool Lookup::getMACDevT_value(const char* MAC,int DevT,int *value){
+	std::string str(MAC);
+	return this->getMACDevT_value(str,DevT,value);
 }
 void Lookup::updateMACDevT_value(std::string& MAC,int DevT,int value){
 
@@ -104,6 +121,11 @@ void Lookup::updateMACDevT_value(std::string& MAC,int DevT,int value){
 		this->MACDevT_values.insert(this->MACDevT_values.begin(),data);
 	}
 }
+
+void Lookup::updateMACDevT_value(const char* MAC,int DevT,int value){
+	std::string str(MAC);
+	this->updateMACDevT_value(str,DevT,value);
+}
 void Lookup::delMACDevT_value(std::string& MAC,int DevT){
 	if(this->MACDevT_values.empty()) return;
 	std::list<struct MACDevT_value_t>::iterator it = this->MACDevT_values.begin();
@@ -114,6 +136,11 @@ void Lookup::delMACDevT_value(std::string& MAC,int DevT){
 			it++;
 		}
 	}
+}
+
+void Lookup::delMACDevT_value(const char* MAC,int DevT){
+	std::string str(MAC);
+	this->delMACDevT_value(str,DevT);
 }
 
 
