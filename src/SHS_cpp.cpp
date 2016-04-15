@@ -17,7 +17,7 @@ void test_rabbitMQAnalyser();
 void test_ContainerMonitor();
 void test_ATAnalyser();
 void test_Regex();
-void test_basicSystemWithoutNAT();
+void test_basicSystemWithNAT();
 using namespace std;
 int main(int argc,char *argv[]){
 
@@ -30,7 +30,7 @@ int main(int argc,char *argv[]){
 	//test_ContainerMonitor();
 	//test_ATAnalyser();
 	//test_Regex();
-	test_basicSystemWithoutNAT();
+	test_basicSystemWithNAT();
 /*
 	pthread_t listen_thread,listen_thread1;
 	rabbit_init_connect();
@@ -215,7 +215,7 @@ void test_Regex(){
     }
 
 }
-void test_basicSystemWithoutNAT(){
+void test_basicSystemWithNAT(){
 	/*
 	 * the bootstrap should include four sessions orderly!
 	 * 1. configure the configuration file
@@ -269,7 +269,6 @@ void test_basicSystemWithoutNAT(){
 	//creat a basic container for its monitor and two analysers
 	SHS::Container container;
 	container.setConf(&conf);
-	container.setLookup(NULL);
 	container.setRabbitMQSenderMQ(&rabbitSMQ);
 	container.setSerialSenderMQ(&serialSMQ);
 	container.setRabbitMQAnalyserMQ(&rabbitRMQ);

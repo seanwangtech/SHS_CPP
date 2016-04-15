@@ -14,7 +14,7 @@ namespace SHS {
 void ZB_onoff::onRabbitMQReceive(){
 	Log::log.debug("ZB_onoff::onRabbitMQReceive rabbitMQ message received received\n");
 	this->setTTL(2000);//give command 2 seconds time to live, if no response in 2 seconds, it will time out
-	string atCmd("AT+RONOFF:56CB,1,0,");
+	string atCmd("AT+RONOFF:1AEA,1,0,");
 	this->sendATCmd(atCmd);
 
 }
@@ -25,6 +25,7 @@ void ZB_onoff::onTimeOut(){
 void ZB_onoff::onATReceive(){
 	Log::log.debug("ZB_onoff::onATReceive AT command received [%s]\n",this->ATMsg.c_str());
 	//DFTREP:16DC,01,0006,02,00
+	//UPDATE:00124B00072880FC,E6FE,05,0006,0000,20,00
 	boost::regex expr("DFTREP:(\\w{4}),(\\w{2}),0006,(\\w{2}),00");
 	//boost::regex expr("DFTREP:(\\w4),");
 	boost::smatch what;
@@ -39,25 +40,27 @@ void ZB_onoff::onATReceive(){
 }
 
 
-void ZB_initdiscover::onRabbitMQReceive(){
+void ZB_init_discover::onRabbitMQReceive(){
+	this->setTTL(2500);
 	this->sendATCmd("AT+DISCOVER:");
 }
-void ZB_initdiscover::onATReceive(){
+void ZB_init_discover::onATReceive(){
 
-	//DEV:56CB,01,ENABLED
+	//DEV:00124B00072880FC,E6FE,05,ENABLED
 	//Log::log.debug("ZB_startup_discover::oATReceive[%s]\n",this->ATMsg.c_str());
-	boost::regex expr("DEV:(\\w{4}),(\\w{2}),ENABLED");
+	boost::regex expr("DEV:(\\w{16}),(\\w{4}),(\\w{2}),ENABLED");
 	boost::sregex_iterator iter(this->ATMsg.begin(), this->ATMsg.end(), expr);
 	boost::sregex_iterator end;
 	for( ; iter != end; ++iter ) {
 	    boost::smatch const &what = *iter;
 	    std::cout<<(*iter)[1]<<'\n';
 		std::cout<<"ZB_startup_discover:discover:"<<what[0]<<std::endl;
+	    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
 	}
 }
-void ZB_initdiscover::onTimeOut(){
-	this->setTTL(2500);
+void ZB_init_discover::onTimeOut(){
 	Log::log.debug("ZB_startup_discover::onTimeOut\n");
+	//Log::log.debug("ZB_startup_discover::%s\n",this->container->lookup.getNWK_MAC(0x4455).c_str());
 	cmdFinish();//indicate command finished
 }
 

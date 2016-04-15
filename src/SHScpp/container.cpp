@@ -11,7 +11,6 @@ namespace SHS {
 
 Container::Container():
 		actCmds(),
-		pLookup(NULL),
 		pSerialSenderMQ(NULL),
 		pRabbitMQSenderMQ(NULL),
 		pRabbitMQAnalyserMQ(NULL),
@@ -58,9 +57,6 @@ void Container::delActCmd(Cmd* cmdObj){
 	*/
 }
 
-void Container::setLookup(Lookup* pLookup){
-	this->pLookup =pLookup;
-}
 void Container::setSerialSenderMQ(MyMQ<std::string>* pSerialSenderMQ){
 	this->pSerialSenderMQ = pSerialSenderMQ;
 }

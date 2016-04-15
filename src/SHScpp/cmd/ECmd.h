@@ -17,7 +17,7 @@ public:
 		void onATReceive();
 });
 
-SHS_CMD_CLASS_CREATE(ZB_initdiscover,{
+SHS_CMD_CLASS_CREATE(ZB_init_discover,{
 public:
 		void onRabbitMQReceive();
 		void onTimeOut();
