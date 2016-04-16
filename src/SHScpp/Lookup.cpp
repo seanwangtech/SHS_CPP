@@ -7,6 +7,9 @@
 
 #include "Lookup.h"
 
+#include <iostream>
+#include <fstream>
+
 namespace SHS {
 using std::string;
 Lookup::Lookup() {
@@ -141,6 +144,27 @@ void Lookup::delMACDevT_value(std::string& MAC,int DevT){
 void Lookup::delMACDevT_value(const char* MAC,int DevT){
 	std::string str(MAC);
 	this->delMACDevT_value(str,DevT);
+}
+
+
+void Lookup::load(Conf &conf){
+	Json::Value root;   // will contain the root value after parsing.
+	Json::CharReaderBuilder builder;
+	std::ifstream test(conf.tables_path.lookup_table.c_str(), std::ifstream::binary);
+	std::string errs;
+	bool ok = Json::parseFromStream(builder, test, &root, &errs);
+	if ( !ok )
+	{
+		Log::log.error("Lookup::load: Error to parse file: %s\n",conf.tables_path.lookup_table.c_str());
+	}
+	//std::cout<<root.toStyledString()<<std::endl;
+	int size = root["DevT_EP"].size();
+	for(int i=0;i<size;i++){
+		this->updateDevT_EP(root["DevT_EP"][i][0].asInt(),root["DevT_EP"][i][1].asInt());
+	}
+	//Log::log.debug("Lookup::load: EP %d\n",this->getDevT_EP(23));
+
+
 }
 
 

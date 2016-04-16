@@ -11,11 +11,7 @@
 
 void test_rabbitReceive();
 void test_serial();
-void test_container();
 void test_json();
-void test_rabbitMQAnalyser();
-void test_ContainerMonitor();
-void test_ATAnalyser();
 void test_Regex();
 void test_basicSystemWithNAT();
 using namespace std;
@@ -82,12 +78,6 @@ void test_serial(){
 			serial.directSend(str);
 		}
 }
-void test_container(){
-	SHS::ClassFactoryInstance().Dump();
-	SHS::Container container;
-	string msg ="at command";
-	container.getCmdObj(*new string("ZB_onoff"))->_onATReceive(msg);
-}
 void test_json(){
 	Json::Value root;
 	Json::Reader reader;
@@ -113,94 +103,7 @@ void test_json(){
 	}
 
 }
-void test_rabbitMQAnalyser(){
 
-	SHS::Conf &conf= *new SHS::Conf();
-	SHS::RabbitMQConnection conn(conf);
-	SHS::RabbitMQReceiver receiver(conn);
-	SHS::MyMQ<Json::Value> mq;
-	receiver.startReceiveAsThread(conf,&mq);
-	SHS::Container container;
-	SHS::RabbitMQAnalyser analyser(&container);
-	analyser.startAnalyseAsThread(&mq);
-	while(1){
-		sleep(3);
-		std::cout<<"the contiainer has "<<container.actCmds.size()<<" active commands"<<endl;
-		if(container.actCmds.size()) {
-			(*container.actCmds.begin())->_onTimeOut();
-			container.delActCmd(*container.actCmds.begin());
-		}
-	}
-}
-void test_ContainerMonitor(){
-	//create configure object
-	SHS::Conf &conf= *new SHS::Conf();
-
-	//create a rabbitmq connection
-	SHS::RabbitMQConnection conn(conf);
-
-	//start rabbiMQ receiver based on the connection and send the received message to a self-defined Message Queue
-	SHS::RabbitMQReceiver receiver(conn);
-	SHS::MyMQ<Json::Value> mq;
-	receiver.startReceiveAsThread(conf,&mq);
-
-	//creat a basic container for its monitor and the rabbitMQ analyser
-	SHS::Container container;
-
-	//start the rabbitMQ analyser
-	SHS::RabbitMQAnalyser analyser(&container);
-	analyser.startAnalyseAsThread(&mq);
-
-	//start the container monitor
-	SHS::ContainerMonitor monitor(container);
-	monitor.startMonitorAsThread();
-
-	//main thread sleep
-	while(1){
-		sleep(3);
-
-	}
-}
-
-void test_ATAnalyser(){
-	//create configure object
-	SHS::Conf &conf= *new SHS::Conf();
-
-	//create a rabbitmq connection
-	SHS::RabbitMQConnection conn(conf);
-
-	//start rabbiMQ receiver based on the connection and send the received message to a self-defined Message Queue
-	SHS::RabbitMQReceiver receiver(conn);
-	SHS::MyMQ<Json::Value> mq;
-	receiver.startReceiveAsThread(conf,&mq);
-
-	//creat a basic container for its monitor and two analysers
-	SHS::Container container;
-
-	//start the rabbitMQ analyser
-	SHS::RabbitMQAnalyser analyser(&container);
-	analyser.startAnalyseAsThread(&mq);
-
-	//start the container monitor
-	SHS::ContainerMonitor monitor(container);
-	monitor.startMonitorAsThread();
-
-	//Create a MyMQ for serial port and ATAnalyser
-	SHS::MyMQ<string> serial_mq;
-	//start serial port according to the configure
-	SHS::SerialPort serial(conf);
-	serial.listenAsThread(&serial_mq);
-	//start AT analyser
-	SHS::ATAnalyser atAnalyser(container);
-	atAnalyser.startAnalyseAsThread(&serial_mq);
-
-	//main thread sleep
-	while(1){
-		string str;
-		cin>>str;
-		serial.directSend(str);
-	}
-}
 void test_Regex(){
 
     std::string text("abc abd");
@@ -267,8 +170,7 @@ void test_basicSystemWithNAT(){
 	 * session 3. create a container for the analyser as workspace
 	 */
 	//creat a basic container for its monitor and two analysers
-	SHS::Container container;
-	container.setConf(&conf);
+	SHS::Container container(conf);
 	container.setRabbitMQSenderMQ(&rabbitSMQ);
 	container.setSerialSenderMQ(&serialSMQ);
 	container.setRabbitMQAnalyserMQ(&rabbitRMQ);

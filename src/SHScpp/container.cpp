@@ -9,14 +9,15 @@
 
 namespace SHS {
 
-Container::Container():
+Container::Container(Conf &conf):
 		actCmds(),
 		pSerialSenderMQ(NULL),
 		pRabbitMQSenderMQ(NULL),
 		pRabbitMQAnalyserMQ(NULL),
-		pConf(NULL){
+		pConf(&conf){
 	pthread_mutex_init(&this->containersMutex,NULL);
 	this->delayInitCmdObj();
+	lookup.load(conf);
 }
 
 Container::~Container() {
@@ -66,9 +67,7 @@ void Container::setRabbitMQSenderMQ(MyMQ<Json::Value> * pRabbitMQSenderMQ){
 void Container::setRabbitMQAnalyserMQ(MyMQ<Json::Value> * pRabbitMQAnalyserMQ){
 	this->pRabbitMQAnalyserMQ = pRabbitMQAnalyserMQ;
 }
-void Container::setConf(Conf* pConf){
-	this->pConf = pConf;
-}
+
 void Container::lockContainer(){
 	pthread_mutex_lock(&this->containersMutex);
 }

@@ -39,6 +39,9 @@ public:
 		std::string port;
 		unsigned int baudrate;
 	}serialPort;
+	struct{
+		std::string lookup_table;
+	} tables_path;
 };
 
 } /* namespace SHS */

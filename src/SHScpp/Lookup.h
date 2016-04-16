@@ -11,6 +11,9 @@
 #include <list>
 #include <string>
 #include <map>
+#include "conf.h"
+#include "json/json.h"
+#include "log.h"
 namespace SHS {
 //different with Conf, this used for dynamic data which generally need to maintenance
 class Lookup {
@@ -34,6 +37,7 @@ public:
 	void updateMACDevT_value(const char* MAC,int DevT,int value);
 	void delMACDevT_value(std::string& MAC,int DevT);
 	void delMACDevT_value(const char* MAC,int DevT);
+	void load(Conf &conf);
 private:
 	std::map<std::string,int> MAC_NWK;
 	std::map<int,int> DevT_EP;

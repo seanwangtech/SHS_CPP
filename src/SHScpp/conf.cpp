@@ -22,6 +22,7 @@ Conf::Conf(){
 	this->home.MAC="000000000000";
 	this->serialPort.baudrate=115200;
 	this->serialPort.port="/dev/ttyUSB0";
+	this->tables_path.lookup_table = "/etc/SHS/lookup.json";
 
 }
 

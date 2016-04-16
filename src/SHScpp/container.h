@@ -24,7 +24,7 @@ namespace SHS {
 namespace SHS {
 class Container {
 public:
-	Container();
+	Container(Conf &conf);
 	virtual ~Container();
 	Cmd* getCmdObj(std::string & objName);
 	Cmd* getCmdObj(const char* objName);
@@ -33,7 +33,6 @@ public:
 	void lockContainer();
 	void unlockContainer();
 	void setSerialSenderMQ(MyMQ<std::string>* pSerialSenderMQ);
-	void setConf(Conf* pConf);
 	void setRabbitMQSenderMQ(MyMQ<Json::Value> * pRabbitMQSenderMQ);
 	void setRabbitMQAnalyserMQ(MyMQ<Json::Value> * pRabbitMQAnalyserMQ);
 	std::list<Cmd *> actCmds;
