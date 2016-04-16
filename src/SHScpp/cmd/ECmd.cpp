@@ -9,15 +9,24 @@
 using std::string;
 namespace SHS {
 
-
-
 void ZB_onoff::onRabbitMQReceive(){
 	Log::log.debug("ZB_onoff::onRabbitMQReceive rabbitMQ message received received\n");
 	this->setTTL(2000);//give command 2 seconds time to live, if no response in 2 seconds, it will time out
 	//AT+RONOFF:<NWK>,<EP>,0,<ON/OFF>
 	int data = this->rabbitMQMesg["data"].asInt();
+	int NWK_addr = this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
+	if (NWK_addr==-1) {
+		//can not find such a device in current lookup table
+		this->rabbitMQMesg["type"]="ZB.onoff.resp";
+		this->rabbitMQMesg["data"]=-1;
+		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
+		string defAppendixKey("ZB.onoff."+this->rabbitMQMesg["ZB_MAC"].asString());
+		this->sendRMsg(defAppendixKey);
+		this->cmdFinish();
+		return;
+	}
 	string atCmd("AT+RONOFF:"
-			+this->intToHexString(this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString()))
+			+this->intToHexString(NWK_addr)
 			+","
 			+this->intToHexString(this->container->lookup.getDevT_EP(this->rabbitMQMesg["ZB_type"].asInt()))
 			+",0,"
@@ -29,7 +38,7 @@ void ZB_onoff::onTimeOut(){
 	Log::log.debug("ZB_onoff::onTimeOut command timeout\n");
 	this->rabbitMQMesg["type"]="ZB.onoff.resp";
 	this->rabbitMQMesg["data"]=-1;
-	this->rabbitMQMesg["status"]="error:01,ZigBee timeout";
+	this->rabbitMQMesg["status"]=this->statusCode.ZB_time_out;
 	string defAppendixKey("ZB.onoff."+this->rabbitMQMesg["ZB_MAC"].asString());
 	this->sendRMsg(defAppendixKey);
 	cmdFinish();//alow next command and remove it from active cmd object list
@@ -50,7 +59,7 @@ void ZB_onoff::onATReceive(){
 			//std::cout<<"ZB_onoff:find NWK:"<<what[0]<<std::endl;
 			this->rabbitMQMesg["type"]="ZB.onoff.resp";
 			this->rabbitMQMesg["data"]=this->parseHex(what[4].str().c_str());
-			this->rabbitMQMesg["status"]="succeed";
+			this->rabbitMQMesg["status"]=this->statusCode.succeed;
 			string defAppendixKey("ZB.onoff."+what[4].str());
 			this->sendRMsg(defAppendixKey);
 			cmdFinish();//alow next command

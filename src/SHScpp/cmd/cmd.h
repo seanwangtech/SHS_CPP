@@ -53,6 +53,18 @@ protected:
 	int parseHex(std::string & hex_str);
 	int parseHex(const char* hex_str);
 	std::string intToHexString(int number);
+	class StatusCode{
+	public:
+		const std::string succeed;
+		const std::string ZB_time_out;
+		const std::string ZB_no_dev;
+		StatusCode():
+			succeed("succeed"),
+			ZB_time_out("01,time out"),
+			ZB_no_dev ("02,No such Device")
+		{};
+	};
+	static StatusCode statusCode;
 
 };
 class ActCmd{

@@ -9,6 +9,7 @@
 #include "../log.h"
 namespace SHS {
 using std::string;
+Cmd::StatusCode Cmd::statusCode;
 Cmd::Cmd():_cmdTTL(0),pMutex(NULL),container(NULL) {
 	this->rabbitMQMesg["type"]="default";
 
