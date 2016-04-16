@@ -14,7 +14,14 @@ namespace SHS {
 void ZB_onoff::onRabbitMQReceive(){
 	Log::log.debug("ZB_onoff::onRabbitMQReceive rabbitMQ message received received\n");
 	this->setTTL(2000);//give command 2 seconds time to live, if no response in 2 seconds, it will time out
-	string atCmd("AT+RONOFF:1AEA,1,0,");
+	//AT+RONOFF:<NWK>,<EP>,0,<ON/OFF>
+	int data = this->rabbitMQMesg["data"].asInt();
+	string atCmd("AT+RONOFF:"
+			+this->intToHexString(this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString()))
+			+","
+			+this->intToHexString(this->container->lookup.getDevT_EP(this->rabbitMQMesg["ZB_type"].asInt()))
+			+",0,"
+			+ (data>1 ? "" :this->intToHexString(data)));
 	this->sendATCmd(atCmd);
 
 }
