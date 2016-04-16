@@ -18,7 +18,7 @@ Conf::Conf(){
 	this->rabbitmq.password="accessnet10";
 	this->rabbitmq.exchange="SHS";
 	this->home.AP_status=running;
-	this->home.id=0;
+	this->home.id=1;
 	this->home.MAC="000000000000";
 	this->serialPort.baudrate=115200;
 	this->serialPort.port="/dev/ttyUSB0";

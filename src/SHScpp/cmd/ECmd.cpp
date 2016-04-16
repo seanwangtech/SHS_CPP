@@ -27,21 +27,35 @@ void ZB_onoff::onRabbitMQReceive(){
 }
 void ZB_onoff::onTimeOut(){
 	Log::log.debug("ZB_onoff::onTimeOut command timeout\n");
+	this->rabbitMQMesg["type"]="ZB.onoff.resp";
+	this->rabbitMQMesg["data"]=-1;
+	this->rabbitMQMesg["status"]="error:01,ZigBee timeout";
+	string defAppendixKey("ZB.onoff."+this->rabbitMQMesg["ZB_MAC"].asString());
+	this->sendRMsg(defAppendixKey);
 	cmdFinish();//alow next command and remove it from active cmd object list
+	return;
 }
 void ZB_onoff::onATReceive(){
 	Log::log.debug("ZB_onoff::onATReceive AT command received [%s]\n",this->ATMsg.c_str());
 	//DFTREP:16DC,01,0006,02,00
 	//UPDATE:00124B00072880FC,E6FE,05,0006,0000,20,00
-	boost::regex expr("DFTREP:(\\w{4}),(\\w{2}),0006,(\\w{2}),00");
+	boost::regex expr("UPDATE:(\\w{16}),(\\w{4}),(\\w{2}),0006,0000,20,(\\w{2})");
 	//boost::regex expr("DFTREP:(\\w4),");
 	boost::smatch what;
 	if (boost::regex_search(this->ATMsg, what, expr))
 	{
-		std::cout<<"ZB_onoff:find NWK:"<<what[0]<<std::endl;
-		string defAppendixKey("ZB.onoff");
-		this->sendRMsg(defAppendixKey);
-		cmdFinish();//alow next command
+		if(this->rabbitMQMesg["ZB_MAC"].asString().compare(what[1].str())==0 &&
+		this->container->lookup.getDevT_EP(this->rabbitMQMesg["ZB_type"].asInt())== this->parseHex(what[3].str().c_str())){
+
+			//std::cout<<"ZB_onoff:find NWK:"<<what[0]<<std::endl;
+			this->rabbitMQMesg["type"]="ZB.onoff.resp";
+			this->rabbitMQMesg["data"]=this->parseHex(what[4].str().c_str());
+			this->rabbitMQMesg["status"]="succeed";
+			string defAppendixKey("ZB.onoff."+what[4].str());
+			this->sendRMsg(defAppendixKey);
+			cmdFinish();//alow next command
+			return;
+		}
 	}
 
 }
