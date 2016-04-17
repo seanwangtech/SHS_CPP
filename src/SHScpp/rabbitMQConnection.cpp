@@ -41,7 +41,7 @@ void Channel::publish(const std::string& exchange,const std::string& routing_key
 		Log::log.warning("Channel::publish: Reconnecting to RabbitMQ\n");
 
 		//first close all the things
-		amqp_channel_close(this->conn_ptr->_getconn_n(), 1, AMQP_REPLY_SUCCESS);
+		amqp_channel_close(this->conn_ptr->_getconn_n(), this->channel_n, AMQP_REPLY_SUCCESS);
 		amqp_connection_close(this->conn_ptr->_getconn_n(), AMQP_REPLY_SUCCESS);
 		amqp_destroy_connection(this->conn_ptr->_getconn_n());
 
@@ -133,9 +133,26 @@ void Channel::listen(Callable_envelope& callback){
 			      res = amqp_consume_message(conn, &envelope, NULL, 0);
 
 			      if (AMQP_RESPONSE_NORMAL != res.reply_type) {
-			        //break;
-			    	  Log::log.error("Channel::listen, AMQP response abnormal");
-			    	  continue;
+			        //this solution is not really work when network changed.
+
+			    	  label_listen_reconnet:
+			    	  Log::log.warning("Channel::listen, AMQP response abnormal\n");
+			    	  Log::log.warning("Channel::listen, reconnecting...\n");
+			    	  //first close previous
+			    	  amqp_channel_close(this->conn_ptr->_getconn_n(), this->channel_n, AMQP_REPLY_SUCCESS);
+			    	  amqp_connection_close(this->conn_ptr->_getconn_n(), AMQP_REPLY_SUCCESS);
+			    	  amqp_destroy_connection(this->conn_ptr->_getconn_n());
+
+			    	  //reconnect to rabbitMQ server!
+			    	  this->conn_ptr->reconnnect();
+			    	  amqp_channel_open(this->conn_ptr->_getconn_n(), channel_n);
+			    	  if(amqp_get_rpc_reply(this->conn_ptr->_getconn_n()).reply_type !=AMQP_RESPONSE_NORMAL){
+			    	  	Log::log.warning("Channel::publish:Opening channel_n error\n");
+			    	  	sleep(2);
+			    	  	goto label_listen_reconnet;
+			    	  }else{
+			    		  continue;
+			    	  }
 			      }
 			      callback.callback(envelope);
 			      amqp_destroy_envelope(&envelope);
