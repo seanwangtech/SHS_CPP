@@ -38,6 +38,8 @@ public:
 	void delMACDevT_value(std::string& MAC,int DevT);
 	void delMACDevT_value(const char* MAC,int DevT);
 	bool checkIsMainValue(int EP,int clusterID,int AttrID);
+	int getMainClusterID(int EP);
+	int getMainAttrID(int EP);
 	void load(Conf &conf);
 private:
 	std::map<std::string,int> MAC_NWK;

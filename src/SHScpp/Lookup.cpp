@@ -156,6 +156,24 @@ bool Lookup::checkIsMainValue(int EP,int clusterID,int AttrID){
 	return false;
 }
 
+int Lookup::getMainClusterID(int EP){
+	std::list<struct Checker_t>::iterator it = this->checker.begin();
+	for(;it!=this->checker.end();it++){
+		if(it->EP == EP){
+			return it->ClusterID;
+		}
+	}
+	return -1;
+}
+int Lookup::getMainAttrID(int EP){
+	std::list<struct Checker_t>::iterator it = this->checker.begin();
+	for(;it!=this->checker.end();it++){
+		if(it->EP == EP){
+			return it->AttrID;
+		}
+	}
+	return -1;
+}
 void Lookup::load(Conf &conf){
 	Json::Value root;   // will contain the root value after parsing.
 	Json::CharReaderBuilder builder;
