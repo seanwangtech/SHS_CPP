@@ -103,7 +103,7 @@ void Cmd::sendRMsg(std::string& defaultKeyAppendix){
 }
 void Cmd::sendRMsg(const char * defaultKeyAppendix){
 	string str(defaultKeyAppendix);
-	this->sendATCmd(str);
+	this->sendRMsg(str);
 }
 void Cmd::sendATCmd(std::string& ATCmd){
 
@@ -156,6 +156,14 @@ void Delay_init_cmdobj::onTimeOut(){
 
 	//start-up discover help to built NAT talbe
 	this->sendToRabbitMQAnalyser("ZB.init.discover");
+
+	//deal with update message!!
+	Cmd* cmdObj;
+	cmdObj=this->container->getCmdObj("ZB_update");
+	cmdObj->setTTL(Cmd::CMD_FOREVER_TTL_MARK);
+	this->container->regActCmd(cmdObj);
+
+
 	this->cmdFinish();
 
 }

@@ -83,8 +83,6 @@ void ZB_init_discover::onATReceive(){
 	boost::sregex_iterator end;
 	for( ; iter != end; ++iter ) {
 	    boost::smatch const &what = *iter;
-	    std::cout<<(*iter)[1]<<'\n';
-		std::cout<<"ZB_startup_discover:discover:"<<what[0]<<std::endl;
 	    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
 	}
 }
@@ -94,5 +92,36 @@ void ZB_init_discover::onTimeOut(){
 	cmdFinish();//indicate command finished
 }
 
+void ZB_update::onATReceive(){
+	//UPDATE:00124B0007288312,4455,04,0006,0000,20,01
+	boost::regex expr("UPDATE:(\\w{16}),(\\w{4}),(\\w{2}),(\\w{4}),(\\w{4}),\\w{2},(\\w{2,4})");
+	boost::sregex_iterator iter(this->ATMsg.begin(), this->ATMsg.end(), expr);
+	boost::sregex_iterator end;
+	for( ; iter != end; ++iter ) {
+		    boost::smatch const &what = *iter;
+		    //update lookup tables
+		    Log::log.debug("ZB_update::onATReceive: %s\n",what[0].str().c_str());
+		    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
+		    int EP = this->parseHex(what[3].str().c_str());
+		    if(this->container->lookup.checkIsMainValue(
+		    		EP,	this->parseHex(what[4].str().c_str()),
+					this->parseHex(what[5].str().c_str()))){
+		    	this->container->lookup.updateMACDevT_value(what[1].str().c_str(),
+											this->container->lookup.getEP_DevT(EP),
+											this->parseHex(what[6].str().c_str()));
+
+		    	//send update to rabbitMQ
+			    Json::Value root;
+			    root["type"]="ZB.update";
+			    root["id"] = ++this->update_id;
+			    root["AP"] = (unsigned int) this->container->pConf->home.id;
+			    root["ZB_MAC"]=what[1].str();
+			    root["ZB_type"] = this->container->lookup.getEP_DevT(EP);
+			    root["data"]=this->parseHex(what[6].str().c_str());
+			    this->rabbitMQMesg = root;
+			    this->sendRMsg(("ZB.update."+what[1].str()).c_str());
+		    }
+	}
+}
 
 } /* namespace SHS */

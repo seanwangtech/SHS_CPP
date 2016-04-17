@@ -24,6 +24,18 @@ public:
 		void onATReceive();
 });
 
+
+SHS_CMD_CLASS_CREATE(ZB_update,{
+public:
+		ZB_update():update_id(0){};
+		//void onRabbitMQReceive();
+		void onTimeOut(){};
+		void onATReceive();
+private:
+		unsigned int update_id;
+});
+
+
 } /* namespace SHS */
 
 #endif /* SHSCPP_CMD_ECMD_H_ */
