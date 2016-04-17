@@ -9,6 +9,7 @@
 #define SHSCPP_RABBITMQCONNECTION_H_
 #include "conf.h"
 #include <pthread.h>
+#include <unistd.h>
 namespace SHS {
 class Channel;
 class RabbitMQConnection;
@@ -42,7 +43,7 @@ public:
 
 private:
 	amqp_channel_t channel_n;
-	const RabbitMQConnection * conn_ptr;
+	RabbitMQConnection * conn_ptr;
 	std::string queue_name;
 };
 
@@ -57,12 +58,18 @@ public:
 	amqp_channel_t _getChannel_n();
 	amqp_connection_state_t _getconn_n ()const;
 	std::string getDefaultExchange() const{return this->default_exchange;};
+	void reconnnect();
 protected:
 	amqp_channel_t getOneChannel();
 private:
 	amqp_connection_state_t conn;
 	amqp_channel_t channel_n;
 	std::string default_exchange;
+	std::string hostname;
+	int port;
+	std::string vhost;
+	std::string user;
+	std::string password;
 	void _rabbitMQConnection(const std::string& hostname, int port, const std::string& vhost,
 				const std::string& user, const std::string& password);
 };

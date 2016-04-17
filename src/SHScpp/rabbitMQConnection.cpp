@@ -26,15 +26,48 @@ void Channel::publish(const std::string& exchange,const std::string& routing_key
 	props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
 	props.content_type = amqp_cstring_bytes("text/plain");
 	props.delivery_mode = 1; /* transient delivery mode */
-	die_on_error(amqp_basic_publish(this->conn_ptr->_getconn_n(),
-	   								this->channel_n,
-	                                amqp_cstring_bytes(exchange.c_str()),
-	                                amqp_cstring_bytes(routing_key.c_str()),
-	                                0,
-	                                0,
-									&props,
-		                            amqp_cstring_bytes(mesg.c_str())),
-		                 "Publishing");
+	int x = amqp_basic_publish(this->conn_ptr->_getconn_n(),
+		   								this->channel_n,
+		                                amqp_cstring_bytes(exchange.c_str()),
+		                                amqp_cstring_bytes(routing_key.c_str()),
+		                                0,
+		                                0,
+										&props,
+			                            amqp_cstring_bytes(mesg.c_str()));
+	if(x<0){
+		label_reconnet:
+		//meaning error occur
+		Log::log.warning("%s: %s\n", "publishing", amqp_error_string2(x));
+		Log::log.warning("Channel::publish: Reconnecting to RabbitMQ\n");
+
+		//first close all the things
+		amqp_channel_close(this->conn_ptr->_getconn_n(), 1, AMQP_REPLY_SUCCESS);
+		amqp_connection_close(this->conn_ptr->_getconn_n(), AMQP_REPLY_SUCCESS);
+		amqp_destroy_connection(this->conn_ptr->_getconn_n());
+
+		//reconnect to rabbitMQ server!
+		this->conn_ptr->reconnnect();
+		amqp_channel_open(this->conn_ptr->_getconn_n(), channel_n);
+		if(amqp_get_rpc_reply(this->conn_ptr->_getconn_n()).reply_type !=AMQP_RESPONSE_NORMAL){
+			Log::log.warning("Channel::publish:Opening channel_n error\n");
+		}else{
+			x = amqp_basic_publish(this->conn_ptr->_getconn_n(),
+													this->channel_n,
+													amqp_cstring_bytes(exchange.c_str()),
+													amqp_cstring_bytes(routing_key.c_str()),
+													0,
+													0,
+													&props,
+													amqp_cstring_bytes(mesg.c_str()));
+		}
+		if(x<0){
+			sleep(2);
+			goto label_reconnet;
+		}
+
+	}
+
+	//die_on_error(x, "Publishing");
 }
 
 void Channel::publish(const std::string& routing_key,const std::string& mesg ){
@@ -170,6 +203,11 @@ RabbitMQConnection::RabbitMQConnection(const std::string& hostname, int port, co
 		const std::string& user, const std::string& password) :
 		conn(NULL),
 		channel_n(0){
+	this->hostname =hostname;
+	this->port = port;
+	this->vhost = vhost;
+	this->user = user;
+	this->password=password;
 	this->default_exchange="SHS";
 	this->_rabbitMQConnection(hostname,port,vhost,user,password);
 }
@@ -177,9 +215,13 @@ RabbitMQConnection::RabbitMQConnection(const SHS::Conf& conf):
 	conn(NULL),
 	channel_n(0){
 	//ninglvfeihong wait check
-	this->_rabbitMQConnection(conf.rabbitmq.hostname,conf.rabbitmq.port,conf.rabbitmq.vhost
-			,conf.rabbitmq.user,conf.rabbitmq.password);
+	this->hostname = conf.rabbitmq.hostname;
+	this->port = conf.rabbitmq.port;
+	this->vhost = conf.rabbitmq.vhost;
+	this->user = conf.rabbitmq.user;
+	this->password=conf.rabbitmq.password;
 	this->default_exchange=conf.rabbitmq.exchange;
+	this->_rabbitMQConnection(hostname,port,vhost,user,password);
 }
 RabbitMQConnection::~RabbitMQConnection() {
 }
@@ -190,6 +232,9 @@ Channel RabbitMQConnection::getChannel(){
 amqp_channel_t RabbitMQConnection::getOneChannel(){
 	channel_n++;
 	return channel_n;
+}
+void RabbitMQConnection::reconnnect(){
+	this->_rabbitMQConnection(hostname,port,vhost,user,password);
 }
 amqp_channel_t RabbitMQConnection::_getChannel_n() {
 	return this->getOneChannel();
