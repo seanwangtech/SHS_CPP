@@ -217,5 +217,43 @@ void ZB_pjoin::onATReceive(){
 	}
 }
 
+void ZB_discover::onRabbitMQReceive(){
+	this->setTTL(2500);
+	this->data.clear();
+	this->sendATCmd("AT+DISCOVER:");
+}
+void ZB_discover::onTimeOut(){
+	this->rabbitMQMesg["type"]="ZB.discover.resp";
+	this->rabbitMQMesg["data"]=data;
+	this->rabbitMQMesg["status"]=this->statusCode.succeed;
+	this->sendRMsg("ZB.discover");
+	this->cmdFinish();
+}
+void ZB_discover::onATReceive(){
+	//DEV:00124B00072880FC,E6FE,05,ENABLED
+	//Log::log.debug("ZB_startup_discover::oATReceive[%s]\n",this->ATMsg.c_str());
+	boost::regex expr("DEV:(\\w{16}),(\\w{4}),(\\w{2}),ENABLED");
+	boost::sregex_iterator iter(this->ATMsg.begin(), this->ATMsg.end(), expr);
+	boost::sregex_iterator end;
+	for( ; iter != end; ++iter ) {
+	    boost::smatch const &what = *iter;
+	    std::string ZB_MAC =what[1].str();
+	    int EP = this->parseHex(what[3].str().c_str());
+	    if (EP==0) continue; //EP==0 indicate the device is dongle, so ignore it
+	    int DevT = this->container->lookup.getEP_DevT(EP);
+	    this->container->lookup.updateMAC_NWK(ZB_MAC.c_str(),this->parseHex(what[2].str().c_str()));
+	    Json::Value arr;
+	    int value;
+	    arr.append(what[1].str());
+	    arr.append(DevT);
+	    if(this->container->lookup.getMACDevT_value(ZB_MAC,DevT,&value)){
+	    	arr.append(value);
+	    }else{
+	    	arr.append(-1);
+	    }
+
+	    this->data.append(arr);
+	}
+}
 
 } /* namespace SHS */

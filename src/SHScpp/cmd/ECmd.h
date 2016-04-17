@@ -49,6 +49,14 @@ public:
 		void onATReceive();
 });
 
+SHS_CMD_CLASS_CREATE(ZB_discover,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+private:
+		Json::Value data;
+});
 
 } /* namespace SHS */
 
