@@ -35,6 +35,13 @@ private:
 		unsigned int update_id;
 });
 
+SHS_CMD_CLASS_CREATE(ZB_read,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+});
+
 
 } /* namespace SHS */
 
