@@ -195,4 +195,27 @@ void ZB_read::onATReceive(){
 			this->cmdFinish();
 	}
 }
+void ZB_pjoin::onRabbitMQReceive(){
+	this->setTTL(800);
+	this->sendATCmd(("AT+PJOIN:"+this->rabbitMQMesg["data"].asString()).c_str());
+}
+void ZB_pjoin::onTimeOut(){
+	this->rabbitMQMesg["data"]=-1;
+	this->rabbitMQMesg["type"]="ZB.pjoin.resp";
+	this->rabbitMQMesg["status"]=this->statusCode.ZB_time_out;
+	this->sendRMsg("ZB.pjoin");
+	this->cmdFinish();
+}
+void ZB_pjoin::onATReceive(){
+	boost::regex expr("OK");
+	boost::smatch what;
+	if (boost::regex_search(this->ATMsg, what, expr)){
+		this->rabbitMQMesg["type"]="ZB.pjoin.resp";
+		this->rabbitMQMesg["status"]=this->statusCode.succeed;
+		this->sendRMsg("ZB.pjoin");
+		this->cmdFinish();
+	}
+}
+
+
 } /* namespace SHS */

@@ -42,6 +42,13 @@ public:
 		void onATReceive();
 });
 
+SHS_CMD_CLASS_CREATE(ZB_pjoin,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+});
+
 
 } /* namespace SHS */
 
