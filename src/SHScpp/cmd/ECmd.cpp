@@ -225,6 +225,7 @@ void ZB_discover::onRabbitMQReceive(){
 void ZB_discover::onTimeOut(){
 	this->rabbitMQMesg["type"]="ZB.discover.resp";
 	this->rabbitMQMesg["data"]=data;
+	this->rabbitMQMesg["AP"]= (unsigned int )this->container->pConf->home.id;
 	this->rabbitMQMesg["status"]=this->statusCode.succeed;
 	this->sendRMsg("ZB.discover");
 	this->cmdFinish();
