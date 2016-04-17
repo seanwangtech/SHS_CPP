@@ -101,6 +101,7 @@ void Channel::listen(Callable_envelope& callback){
 
 			      if (AMQP_RESPONSE_NORMAL != res.reply_type) {
 			        //break;
+			    	  Log::log.error("Channel::listen, AMQP response abnormal");
 			    	  continue;
 			      }
 			      callback.callback(envelope);
@@ -209,7 +210,7 @@ void RabbitMQConnection::_rabbitMQConnection(const std::string& hostname, int po
 	if (status) {
 		die("opening TCP socket");
 	}
-	die_on_amqp_error(amqp_login(this->conn, vhost.c_str(), 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, user.c_str(), password.c_str()),
+	die_on_amqp_error(amqp_login(this->conn, vhost.c_str(), 0, 131072, 60, AMQP_SASL_METHOD_PLAIN, user.c_str(), password.c_str()),
 			                    "Logging in");
 }
 } /* namespace SHS */
