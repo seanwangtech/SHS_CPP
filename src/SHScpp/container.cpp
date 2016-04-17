@@ -26,6 +26,7 @@ Cmd* Container::getCmdObj(std::string & objName){
 	Cmd* pCmd = (Cmd *) ClassFactoryInstance().GetObject(objName);
 	if(pCmd){
 		pCmd->setContainer(this);
+		pCmd->setTTL(1500); //default new registered cmmand time out time is 1.5 second
 		return pCmd;
 	}else{
 		return pCmd;
@@ -40,7 +41,6 @@ void Container::regActCmd(Cmd* cmdObj){
 	//remove all the cmdObj which equal cmdObj,if not exist, remove nothing.
 	if(cmdObj){
 		this->actCmds.remove(cmdObj);
-		cmdObj->setTTL(1500); //default new registered cmmand time out time is 1.5 second
 		this->actCmds.insert(this->actCmds.begin(),cmdObj);
 	}else{
 		Log::log.warning("Container:invalid command object when regActCmd()");
