@@ -37,6 +37,7 @@ public:
 	void updateMACDevT_value(const char* MAC,int DevT,int value);
 	void delMACDevT_value(std::string& MAC,int DevT);
 	void delMACDevT_value(const char* MAC,int DevT);
+	bool checkIsMainValue(int EP,int clusterID,int AttrID);
 	void load(Conf &conf);
 private:
 	std::map<std::string,int> MAC_NWK;
@@ -47,6 +48,12 @@ private:
 		int value;
 	};
 	std::list<struct MACDevT_value_t> MACDevT_values;
+	struct Checker_t{
+		int EP;
+		int ClusterID;
+		int AttrID;
+	};
+	std::list<struct Checker_t> checker;
 };
 
 } /* namespace SHS */

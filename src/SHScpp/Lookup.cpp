@@ -146,6 +146,15 @@ void Lookup::delMACDevT_value(const char* MAC,int DevT){
 	this->delMACDevT_value(str,DevT);
 }
 
+bool Lookup::checkIsMainValue(int EP,int clusterID,int AttrID){
+	std::list<struct Checker_t>::iterator it = this->checker.begin();
+	for(;it!=this->checker.end();it++){
+		if(it->EP == EP && it->ClusterID == clusterID && it->AttrID==AttrID){
+			return true;
+		}
+	}
+	return false;
+}
 
 void Lookup::load(Conf &conf){
 	Json::Value root;   // will contain the root value after parsing.
@@ -161,6 +170,13 @@ void Lookup::load(Conf &conf){
 	int size = root["DevT_EP"].size();
 	for(int i=0;i<size;i++){
 		this->updateDevT_EP(root["DevT_EP"][i][0].asInt(),root["DevT_EP"][i][1].asInt());
+
+		//add information into checker
+		struct Checker_t check;
+		check.EP=root["DevT_EP"][i][1].asInt();
+		check.ClusterID=root["DevT_EP"][i][2].asInt();
+		check.AttrID=root["DevT_EP"][i][3].asInt();
+		this->checker.insert(this->checker.begin(),check);
 	}
 	//Log::log.debug("Lookup::load: EP %d\n",this->getDevT_EP(23));
 
