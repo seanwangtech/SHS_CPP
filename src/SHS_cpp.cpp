@@ -132,6 +132,7 @@ void test_basicSystemWithNAT(){
 	 */
 	//create configure object
 	SHS::Conf &conf= *new SHS::Conf();
+	conf.load("/etc/SHS/SHS.conf.json");
 
 	/****************************************************************************************************
 	 * session 2. start connections both to RabbitMQ and to serial port

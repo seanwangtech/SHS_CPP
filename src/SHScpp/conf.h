@@ -42,6 +42,8 @@ public:
 	struct{
 		std::string lookup_table;
 	} tables_path;
+	bool load(std::string &path);
+	bool load(const char* path);
 };
 
 } /* namespace SHS */
