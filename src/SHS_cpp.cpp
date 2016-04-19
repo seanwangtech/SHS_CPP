@@ -8,14 +8,45 @@
 #include <unistd.h>
 
 #include "SHScpp/SHS.h"
-
+#include <sys/stat.h>
 void test_rabbitReceive();
 void test_serial();
 void test_json();
 void test_Regex();
 void test_basicSystemWithNAT();
 using namespace std;
+// 守护进程初始化函数
+void init_daemon()
+{
+    pid_t pid;
+    int i = 0;
+
+    if ((pid = fork()) == -1) {
+        printf("Fork error !\n");
+        exit(1);
+    }
+    if (pid != 0) {
+        exit(0);        // 父进程退出
+    }
+
+    setsid();           // 子进程开启新会话，并成为会话首进程和组长进程
+    if ((pid = fork()) == -1) {
+        printf("Fork error !\n");
+        exit(-1);
+    }
+    if (pid != 0) {
+        exit(0);        // 结束第一子进程，第二子进程不再是会话首进程
+    }
+    chdir("/tmp");      // 改变工作目录
+    umask(0);           // 重设文件掩码
+    for (; i < getdtablesize(); ++i) {
+       close(i);        // 关闭打开的文件描述符
+    }
+
+    return;
+}
 int main(int argc,char *argv[]){
+	//init_daemon();//start daemon
 
 	//test_rabbitReceive();
 
