@@ -31,6 +31,68 @@ SerialPort::SerialPort(std::string &port,unsigned int baudrate):fd(0),isOpen(fal
 	this->baudrate=baudrate;
 	this->openPort();
 }
+/***************************************************************************
+ * Function get_baudRate(*) takes the baud rate as an integer, converts it 	*
+ * into speed_t format, and then returns it.								*
+ ***************************************************************************/
+static speed_t get_baudRate(int baudRate) {
+	speed_t BAUD;
+
+	switch (baudRate) {
+	case 38400:
+	default:
+		BAUD = B38400;
+		break;
+	case 115200:
+		BAUD = B115200;
+		break;
+	case 19200:
+		BAUD = B19200;
+		break;
+	case 9600:
+		BAUD = B9600;
+		break;
+	case 4800:
+		BAUD = B4800;
+		break;
+	case 2400:
+		BAUD = B2400;
+		break;
+	case 1800:
+		BAUD = B1800;
+		break;
+	case 1200:
+		BAUD = B1200;
+		break;
+	case 600:
+		BAUD = B600;
+		break;
+	case 300:
+		BAUD = B300;
+		break;
+	case 200:
+		BAUD = B200;
+		break;
+	case 150:
+		BAUD = B150;
+		break;
+	case 134:
+		BAUD = B134;
+		break;
+	case 110:
+		BAUD = B110;
+		break;
+	case 75:
+		BAUD = B75;
+		break;
+	case 50:
+		BAUD = B50;
+		break;
+	} //end of switch baud_rate
+
+	return BAUD;
+}
+
 void SerialPort::openPort(){
 	fd = 0;	 /* File descriptor for the port */
 	struct termios oldtio,newtio;
@@ -54,7 +116,10 @@ void SerialPort::openPort(){
 			 CLOCAL  : local connection, no modem contol
 			 CREAD   : enable receiving characters
 		 */
-		newtio.c_cflag = baudrate | CS8 | CLOCAL | CREAD;
+		newtio.c_cflag = CS8 | CLOCAL | CREAD;
+		//set baudrate
+		cfsetispeed(&newtio,get_baudRate(this->baudrate) );
+		cfsetospeed(&newtio,get_baudRate(this->baudrate));
 
 		/*
 			 IGNPAR  : ignore bytes with parity errors
@@ -105,7 +170,6 @@ void SerialPort::openPort(){
 			 now clean the modem line and activate the settings for the port
 		 */
 		tcflush(fd, TCIFLUSH);
-		//tcsetattr(fd,TCSANOW,&newtio);
 		 if(tcsetattr(fd,TCSANOW,&newtio) != 0){
 			 Log::log.error("SerialPort: set serial port erro!\n");
 		 }
