@@ -95,13 +95,16 @@ static speed_t get_baudRate(int baudRate) {
 
 void SerialPort::openPort(){
 	fd = 0;	 /* File descriptor for the port */
-	struct termios oldtio,newtio;
-
+	struct termios newtio;
+LabelReopenPort:
 		/* Open modem device for reading and writing and not as controlling tty
 		   because we don't want to get killed if line noise sends CTRL-C.   */
-	fd = open(port.c_str(), O_RDWR | O_NOCTTY );
-	if (fd < 0) {
-		Log::log.error("SerialPort: error when open port:%s baudbrate:%d \n",port.c_str(),this->baudrate);
+
+	while ((fd = open(port.c_str(), O_RDWR | O_NOCTTY )) < 0) {
+		//close the error fd
+		close(fd);
+		Log::log.debug("SerialPort: error when open port:%s baudbrate:%d \n",port.c_str(),this->baudrate);
+		sleep(5);
 	}
 
 	tcgetattr(fd,&oldtio); 			/* save current serial port settings */
@@ -171,10 +174,18 @@ void SerialPort::openPort(){
 		 */
 		tcflush(fd, TCIFLUSH);
 		 if(tcsetattr(fd,TCSANOW,&newtio) != 0){
-			 Log::log.error("SerialPort: set serial port erro!\n");
+			 Log::log.debug("SerialPort: set serial port erro!\n");
+			 close(fd);
+			 goto LabelReopenPort;
 		 }
 		 Log::log.debug("SerialPort: set serial port OK!\n");
 		 isOpen=true;
+}
+void SerialPort::closePort(){
+	//recover serial configuration and close the serial port
+	tcsetattr(fd,TCSANOW,&oldtio);
+	close(fd);
+	isOpen=false;
 }
 SerialPort::~SerialPort() {
 }
@@ -182,6 +193,11 @@ void SerialPort::listen(MyMQ<string> *mq){
 	this->pLMQ =mq;
 	while(1){
 		string serialData(this->readPort());
+		if(serialData.length()==0){
+			this->closePort();
+			this->openPort();
+			continue;
+		}
 		if(this->pLMQ){
 			this->pLMQ->sendMSG(serialData);
 			Log::log.debug("SerialPort: send string to ATAnalyser:[%s]\n",serialData.c_str());

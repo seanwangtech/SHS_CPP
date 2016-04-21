@@ -27,12 +27,14 @@ public:
 
 private:
 	void openPort();
+	void closePort();
 	char* readPort();
 	unsigned int baudrate;
 	std::string port;
 	int fd;
 	bool isOpen;
 	MyMQ<std::string>* pLMQ;
+	struct termios oldtio;
 };
 
 } /* namespace SHS */
