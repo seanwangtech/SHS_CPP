@@ -48,7 +48,7 @@ void ZB_onoff::onATReceive(){
 	Log::log.debug("ZB_onoff::onATReceive AT command received [%s]\n",this->ATMsg.c_str());
 	//DFTREP:16DC,01,0006,02,00
 	//UPDATE:00124B00072880FC,E6FE,05,0006,0000,20,00
-	boost::regex expr("UPDATE:(\\w{16}),(\\w{4}),(\\w{2}),0006,0000,20,(\\w{2})");
+	boost::regex expr("UPDATE:(\\w{16}),(\\w{4}),(\\w{2}),0006,0000,\\w{2},(\\w{2})");
 	//boost::regex expr("DFTREP:(\\w4),");
 	boost::smatch what;
 	if (boost::regex_search(this->ATMsg, what, expr))
