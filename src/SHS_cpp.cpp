@@ -176,6 +176,15 @@ void test_basicSystemWithNAT(){
 	 * I try to create only one channel, however, it tend to die when sender gets channel from the connection occasionally, so I change it to use two connections.
 	 *
 	 */
+
+	//Create a MyMQ for serial port and ATAnalyser
+	//start serial port according to the configure
+	SHS::MyMQ<string> serialLMQ;
+	SHS::SerialPort serial(conf);
+	serial.listenAsThread(&serialLMQ);
+	SHS::MyMQ<string> serialSMQ;
+	serial.startSenderAsThread(&serialSMQ);
+
 	//create a rabbitmq connection for receiver
 	SHS::RabbitMQConnection connR(conf);
 	SHS::RabbitMQReceiver receiver(connR);
@@ -189,13 +198,7 @@ void test_basicSystemWithNAT(){
 	sender.startSendAsThread(conf,&rabbitSMQ);
 
 
-	//Create a MyMQ for serial port and ATAnalyser
-	//start serial port according to the configure
-	SHS::MyMQ<string> serialLMQ;
-	SHS::SerialPort serial(conf);
-	serial.listenAsThread(&serialLMQ);
-	SHS::MyMQ<string> serialSMQ;
-	serial.startSenderAsThread(&serialSMQ);
+
 
 
 	/****************************************************************************************************

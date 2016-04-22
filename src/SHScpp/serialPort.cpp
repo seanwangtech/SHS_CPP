@@ -182,6 +182,9 @@ void SerialPort::listen(MyMQ<string> *mq){
 	this->pLMQ =mq;
 	while(1){
 		string serialData(this->readPort());
+		if(serialData.length()==0){
+			exit(-1);
+		}
 		if(this->pLMQ){
 			this->pLMQ->sendMSG(serialData);
 			Log::log.debug("SerialPort: send string to ATAnalyser:[%s]\n",serialData.c_str());
