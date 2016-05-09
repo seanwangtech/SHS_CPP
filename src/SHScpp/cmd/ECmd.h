@@ -58,6 +58,12 @@ private:
 		Json::Value data;
 });
 
+SHS_CMD_CLASS_CREATE(ZB_AT,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut(){};
+});
+
 } /* namespace SHS */
 
 #endif /* SHSCPP_CMD_ECMD_H_ */

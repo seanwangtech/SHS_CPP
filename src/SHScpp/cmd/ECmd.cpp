@@ -122,6 +122,14 @@ void ZB_update::onATReceive(){
 			    this->sendRMsg(("ZB.update."+what[1].str()).c_str());
 		    }
 	}
+	//update AT command and id field is not applicable
+	Json::Value ATResp;
+	ATResp["type"]="ZB.AT.resp";
+	ATResp["data"]=this->ATMsg;
+	ATResp["AP"]= (unsigned int )this->container->pConf->home.id;
+	ATResp["status"]=this->statusCode.succeed;
+	this->rabbitMQMesg = ATResp;
+	this->sendRMsg("ZB.AT");
 }
 
 void ZB_read::onRabbitMQReceive(){
@@ -257,4 +265,24 @@ void ZB_discover::onATReceive(){
 	}
 }
 
+void ZB_AT::onRabbitMQReceive(){
+	bool isOK = false;
+	if(this->rabbitMQMesg["data"].isString()){
+		std::string data(this->rabbitMQMesg["data"].asCString());
+		if((	data.c_str()[0]=='a' ||data.c_str()[0]=='A')
+			&& (data.c_str()[1]=='t' ||data.c_str()[1]=='T')){
+			isOK = true;
+			this->sendATCmd(data);
+		}
+	}
+
+	if(!isOK){
+		this->rabbitMQMesg["type"]="ZB.AT.resp";
+		this->rabbitMQMesg["data"]="error";
+		this->rabbitMQMesg["AP"]= (unsigned int )this->container->pConf->home.id;
+		this->rabbitMQMesg["status"]=this->statusCode.ZB_AT_format_error;
+		this->sendRMsg("ZB.AT");
+	}
+	this->cmdFinish();
+}
 } /* namespace SHS */

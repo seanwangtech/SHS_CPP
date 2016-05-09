@@ -58,10 +58,12 @@ protected:
 		const std::string succeed;
 		const std::string ZB_time_out;
 		const std::string ZB_no_dev;
+		const std::string ZB_AT_format_error;
 		StatusCode():
 			succeed("succeed"),
 			ZB_time_out("01,time out"),
-			ZB_no_dev ("02,No such Device")
+			ZB_no_dev ("02,No such Device"),
+			ZB_AT_format_error("03,AT command format error")
 		{};
 	};
 	static StatusCode statusCode;
