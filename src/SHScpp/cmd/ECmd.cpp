@@ -122,6 +122,31 @@ void ZB_update::onATReceive(){
 			    this->sendRMsg(("ZB.update."+what[1].str()).c_str());
 		    }
 	}
+
+	//DEVRPT:00124B0007287FF2,8C18,6F
+	expr = boost::regex("DEVRPT:(\\w{16}),(\\w{4})([,\\dABCDEF]+)");
+	iter = boost::sregex_iterator(this->ATMsg.begin(), this->ATMsg.end(), expr);
+	for( ; iter != end; ++iter ) {
+	    boost::smatch const &what = *iter;
+	    //update lookup tables
+	    Log::log.debug("ZB_DEVRPT::onATReceive: %s\n",what[0].str().c_str());
+	    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
+	    std::string eps(what[3].str());
+		for(unsigned int i=0;i< eps.length();i+=3){
+			int EP = this->parseHex(eps.substr(i+1,2).c_str());
+			Json::Value root;
+			root["type"]="ZB.update.DevUp";
+			root["id"] = ++this->update_id;
+			root["AP"] = (unsigned int) this->container->pConf->home.id;
+			root["ZB_MAC"]=what[1].str();
+			root["ZB_type"] = this->container->lookup.getEP_DevT(EP);
+			this->rabbitMQMesg = root;
+			this->sendRMsg(("ZB.update.DevUp."+what[1].str()).c_str());
+	    }
+	}
+
+
+
 	//update AT command and id field is not applicable
 	Json::Value ATResp;
 	ATResp["type"]="ZB.AT.resp";
