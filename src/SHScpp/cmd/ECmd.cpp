@@ -310,4 +310,55 @@ void ZB_AT::onRabbitMQReceive(){
 	}
 	this->cmdFinish();
 }
+
+void ZB_CSLock::onRabbitMQReceive(){
+	this->setTTL(2000);//give command 2 seconds time to live, if no response in 2 seconds, it will time out
+	//AT+CSLOCK:<NWK>,<cmd>
+	int data = this->rabbitMQMesg["data"].asInt();
+	int NWK_addr = this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
+	if (NWK_addr==-1) {
+		//can not find such a device in current lookup table
+		this->rabbitMQMesg["type"]="ZB.CSLock.resp";
+		this->rabbitMQMesg["data"]=-1;
+		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
+		string defAppendixKey("ZB.CSLock."+this->rabbitMQMesg["ZB_MAC"].asString());
+		this->sendRMsg(defAppendixKey);
+		this->cmdFinish();
+		return;
+	}
+	string atCmd("AT+CSLOCK:"
+			+this->intToHexString(NWK_addr)
+			+","
+			+ this->intToHexString(data));
+	this->sendATCmd(atCmd);
+}
+void ZB_CSLock::onATReceive(){
+	//CSLOCK:1375,01
+	boost::regex expr("CSLOCK:(\\w{4}),(\\w{2})");
+	boost::smatch what;
+	if (boost::regex_search(this->ATMsg, what, expr))
+	{
+		int NWK = this->parseHex(what[1].str().c_str());
+		if(this->rabbitMQMesg["ZB_MAC"].asString().compare(this->container->lookup.getNWK_MAC(NWK))==0){
+
+			this->rabbitMQMesg["type"]="ZB.CSLock.resp";
+			this->rabbitMQMesg["data"]=this->parseHex(what[2].str().c_str());
+			this->rabbitMQMesg["status"]=this->statusCode.succeed;
+			string defAppendixKey("ZB.CSLock."+rabbitMQMesg["ZB_MAC"].asString());
+			this->sendRMsg(defAppendixKey);
+			cmdFinish();//alow next command
+			return;
+		}
+	}
+}
+void ZB_CSLock::onTimeOut(){
+	Log::log.debug("ZB_CSLock::onTimeOut command timeout\n");
+	this->rabbitMQMesg["type"]="ZB.CSLock.resp";
+	this->rabbitMQMesg["data"]=-1;
+	this->rabbitMQMesg["status"]=this->statusCode.ZB_time_out;
+	string defAppendixKey("ZB.CSLock."+this->rabbitMQMesg["ZB_MAC"].asString());
+	this->sendRMsg(defAppendixKey);
+	cmdFinish();//alow next command and remove it from active cmd object list
+	return;
+}
 } /* namespace SHS */

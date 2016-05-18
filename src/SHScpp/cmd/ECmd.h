@@ -64,6 +64,13 @@ public:
 		void onTimeOut(){};
 });
 
+SHS_CMD_CLASS_CREATE(ZB_CSLock,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+});
+
 } /* namespace SHS */
 
 #endif /* SHSCPP_CMD_ECMD_H_ */
