@@ -156,6 +156,9 @@ void ZB_update::onATReceive(){
 	this->rabbitMQMesg = ATResp;
 	this->sendRMsg("ZB.AT");
 }
+void ZB_update::onRabbitMQReceive(){
+	this->setTTL(Cmd::CMD_FOREVER_TTL_MARK);
+}
 
 void ZB_read::onRabbitMQReceive(){
 	int value;

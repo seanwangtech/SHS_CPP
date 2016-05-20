@@ -31,6 +31,7 @@ public:
 		//void onRabbitMQReceive();
 		void onTimeOut(){};
 		void onATReceive();
+		void onRabbitMQReceive();
 private:
 		unsigned int update_id;
 });

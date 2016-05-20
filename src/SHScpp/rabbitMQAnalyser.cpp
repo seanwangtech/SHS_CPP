@@ -54,7 +54,9 @@ void RabbitMQAnalyser::startAnalyse(MyMQ<Json::Value> * pMQ){
 						cmdObj->_onRabbitMQReceive(root);
 						this->pContainer->unlockContainer();
 						//wait this command finished and then start analyse next command
-						cmdObj->waitCmdFinish(&mutex);
+						if(root["__attribute_uart_exclusive"].isNull() || root["__attribute_uart_exclusive"].asBool()){
+							cmdObj->waitCmdFinish(&mutex);
+						}
 					}else{
 						Log::log.warning("RabbitMQAnalyser: Unsupported message type:%s\n",type_str.c_str());
 					}

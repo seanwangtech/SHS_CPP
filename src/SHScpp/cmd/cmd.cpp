@@ -158,11 +158,14 @@ void Delay_init_cmdobj::onTimeOut(){
 	this->sendToRabbitMQAnalyser("ZB.init.discover");
 
 	//deal with update message!!
-	Cmd* cmdObj;
-	cmdObj=this->container->getCmdObj("ZB_update");
-	cmdObj->setTTL(Cmd::CMD_FOREVER_TTL_MARK);
-	this->container->regActCmd(cmdObj);
-
+	//Cmd* cmdObj;
+	//cmdObj=this->container->getCmdObj("ZB_update");
+	//cmdObj->setTTL(Cmd::CMD_FOREVER_TTL_MARK);
+	//this->container->regActCmd(cmdObj);
+	Json::Value msg;
+	msg["type"]="ZB.update.req";
+	msg["__attribute_uart_exclusive"]=false;
+	this->sendToRabbitMQAnalyser(msg);
 
 	this->cmdFinish();
 
