@@ -71,7 +71,17 @@ public:
 		void onTimeOut();
 		void onATReceive();
 });
-
+template<typename T> struct template_argument_type;
+template<typename T, typename U> struct template_argument_type<T(U)> { typedef U type; };
+#define TEM_DEFINE(t,name) template_argument_type<void(t)>::type name
+SHS_CMD_CLASS_CREATE(ZB_update_deactive,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		static TEM_DEFINE((std::map<int,int>),activeMap);
+		static const int DEAD_PERIOD=12;//mins , if no update in this period will be taken as a deactive device
+		static void renewDev(int NWK);
+});
 } /* namespace SHS */
 
 #endif /* SHSCPP_CMD_ECMD_H_ */

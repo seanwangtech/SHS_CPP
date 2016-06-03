@@ -101,7 +101,8 @@ void ZB_update::onATReceive(){
 		    boost::smatch const &what = *iter;
 		    //update lookup tables
 		    Log::log.debug("ZB_update::onATReceive: %s\n",what[0].str().c_str());
-		    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
+		    int NWK = this->parseHex(what[2].str().c_str());
+		    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),NWK);
 		    int EP = this->parseHex(what[3].str().c_str());
 		    if(this->container->lookup.checkIsMainValue(
 		    		EP,	this->parseHex(what[4].str().c_str()),
@@ -121,6 +122,8 @@ void ZB_update::onATReceive(){
 			    this->rabbitMQMesg = root;
 			    this->sendRMsg(("ZB.update."+what[1].str()).c_str());
 		    }
+		    //renew the value of the active map in ZB_update_deactive
+		    ZB_update_deactive::renewDev(NWK);
 	}
 
 	//DEVRPT:00124B0007287FF2,8C18,6F
@@ -130,7 +133,8 @@ void ZB_update::onATReceive(){
 	    boost::smatch const &what = *iter;
 	    //update lookup tables
 	    Log::log.debug("ZB_DEVRPT::onATReceive: %s\n",what[0].str().c_str());
-	    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
+	    int NWK = this->parseHex(what[2].str().c_str());
+	    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),NWK);
 	    std::string eps(what[3].str());
 		for(unsigned int i=0;i< eps.length();i+=3){
 			int EP = this->parseHex(eps.substr(i+1,2).c_str());
@@ -142,6 +146,9 @@ void ZB_update::onATReceive(){
 			root["ZB_type"] = this->container->lookup.getEP_DevT(EP);
 			this->rabbitMQMesg = root;
 			this->sendRMsg(("ZB.update.DevUp."+what[1].str()).c_str());
+
+			//renew the value of the active map in ZB_update_deactive
+			ZB_update_deactive::renewDev(NWK);
 	    }
 	}
 
@@ -364,4 +371,40 @@ void ZB_CSLock::onTimeOut(){
 	cmdFinish();//alow next command and remove it from active cmd object list
 	return;
 }
+TEM_DEFINE((std::map<int,int>),ZB_update_deactive::activeMap);
+void ZB_update_deactive::onRabbitMQReceive(){
+	if(this->rabbitMQMesg["type"].asString().compare("ZB.update.deactive.init")==0){
+		//initialise the deactive task;
+		this->setTTL(60000); //1mins
+	}else if(this->rabbitMQMesg["type"].asString().compare("ZB.update.deactive.SOC")==0){
+		int NWK =this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
+		if(this->activeMap[NWK] <= 0){
+			//stop sending ZB.update.deactive message
+			this->activeMap.erase(NWK);
+		}
+	}
+}
+void ZB_update_deactive::onTimeOut(){
+	std::map<int,int>::iterator it = this->activeMap.begin();
+	for(;it!=this->activeMap.end();it++){
+		it->second --;
+		if(it->second<=0){
+			//std::map<int,int>::iterator toErase=it;
+			//this->activeMap.erase(toErase);
+			std::string ZB_MAC= this->container->lookup.getNWK_MAC(it->first);
+			Json::Value root;
+			root["type"]="ZB.update.deactive";
+			root["id"]=0;
+			root["AP"]= (unsigned int )this->container->pConf->home.id;
+			root["ZB_MAC"] =ZB_MAC;
+			this->rabbitMQMesg = root;
+			this->sendRMsg(("ZB.update.deactive."+ZB_MAC).c_str());
+		}
+	}
+	this->setTTL(60000); //1mins
+}
+void ZB_update_deactive::renewDev(int NWK){
+    ZB_update_deactive::activeMap[NWK] = ZB_update_deactive::DEAD_PERIOD;
+}
+
 } /* namespace SHS */

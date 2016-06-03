@@ -164,8 +164,10 @@ void Delay_init_cmdobj::onTimeOut(){
 	//this->container->regActCmd(cmdObj);
 	Json::Value msg;
 	msg["type"]="ZB.update.req";
-	msg["__attribute_uart_exclusive"]=false;
+	msg["__attribute_uart_exclusive"]=false;  //attribute is non exclusive
 	this->sendToRabbitMQAnalyser(msg);
+	msg["type"]="ZB.update.deactive.init";
+	this->sendToRabbitMQAnalyser(msg); //attribute is non exclusive
 
 	this->cmdFinish();
 
