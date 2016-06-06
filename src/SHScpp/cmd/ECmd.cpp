@@ -17,6 +17,7 @@ void ZB_onoff::onRabbitMQReceive(){
 	int NWK_addr = this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
 	if (NWK_addr==-1) {
 		//can not find such a device in current lookup table
+		Log::log.warning("ZB_onoff::onRabbitMQReceive: no such device [%s]\n",this->rabbitMQMesg["ZB_MAC"].asCString());
 		this->rabbitMQMesg["type"]="ZB.onoff.resp";
 		this->rabbitMQMesg["data"]=-1;
 		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
@@ -200,6 +201,7 @@ void ZB_read::onRabbitMQReceive(){
 				","+
 				this->intToHexString(this->container->lookup.getMainAttrID(EP))).c_str());
 	}else{
+		Log::log.warning("ZB_read::onRabbitMQReceive: no such device [%s]\n",this->rabbitMQMesg["ZB_MAC"].asCString());
 		this->rabbitMQMesg["data"]= -1;
 		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
 		this->sendRMsg(("ZB.read."+this->rabbitMQMesg["ZB_MAC"].asString()).c_str());
@@ -327,6 +329,7 @@ void ZB_CSLock::onRabbitMQReceive(){
 	int data = this->rabbitMQMesg["data"].asInt();
 	int NWK_addr = this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
 	if (NWK_addr==-1) {
+		Log::log.warning("ZB_CSLock::onRabbitMQReceive: no such device [%s]\n",this->rabbitMQMesg["ZB_MAC"].asCString());
 		//can not find such a device in current lookup table
 		this->rabbitMQMesg["type"]="ZB.CSLock.resp";
 		this->rabbitMQMesg["data"]=-1;
@@ -399,6 +402,11 @@ void ZB_update_deactive::onTimeOut(){
 			root["ZB_MAC"] =ZB_MAC;
 			this->rabbitMQMesg = root;
 			this->sendRMsg(("ZB.update.deactive."+ZB_MAC).c_str());
+
+			if(it->second == 0) {
+				//record the deactive node first time
+				Log::log.warning("ZB_ device update_deactive: deactive device [%s]\n",ZB_MAC.c_str());
+			}
 		}
 	}
 	this->setTTL(60000); //1mins

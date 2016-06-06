@@ -183,7 +183,7 @@ void SerialPort::listen(MyMQ<string> *mq){
 	while(1){
 		string serialData(this->readPort());
 		if(serialData.length()==0){
-			exit(-1);
+			Log::log.error("serial USB error\n");
 		}
 		if(this->pLMQ){
 			this->pLMQ->sendMSG(serialData);

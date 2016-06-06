@@ -150,6 +150,7 @@ void test_Regex(){
 
 }
 void test_basicSystemWithNAT(){
+	SHS::Log::log.record("/**********The SHS service is starting...************/");
 	/*
 	 * the bootstrap should include four sessions orderly!
 	 * 1. configure the configuration file
