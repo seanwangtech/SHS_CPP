@@ -43,6 +43,15 @@ public:
 		void onATReceive();
 });
 
+SHS_CMD_CLASS_CREATE(ZB_set,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+		int value;
+		ZB_set():value(-1){};
+});
+
 SHS_CMD_CLASS_CREATE(ZB_pjoin,{
 public:
 		void onRabbitMQReceive();
@@ -82,6 +91,17 @@ public:
 		static const int DEAD_PERIOD=12;//mins , if no update in this period will be taken as a deactive device
 		static void renewDev(int NWK);
 });
+
+SHS_CMD_CLASS_CREATE(ZB_IR,{
+public:
+		void onRabbitMQReceive();
+		void onTimeOut();
+		void onATReceive();
+		int MsgType;
+		ZB_IR():MsgType(-1){};
+});
+
+
 } /* namespace SHS */
 
 #endif /* SHSCPP_CMD_ECMD_H_ */

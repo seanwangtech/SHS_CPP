@@ -59,11 +59,15 @@ protected:
 		const std::string ZB_time_out;
 		const std::string ZB_no_dev;
 		const std::string ZB_AT_format_error;
+		const std::string ZB_IR_cmd_unsupport;
+		const std::string ZB_IR_cmd_failure;
 		StatusCode():
 			succeed("succeed"),
 			ZB_time_out("01,time out"),
 			ZB_no_dev ("02,No such Device"),
-			ZB_AT_format_error("03,AT command format error")
+			ZB_AT_format_error("03,AT command format error"),
+			ZB_IR_cmd_unsupport("04,IR do not support this cmd"),
+			ZB_IR_cmd_failure("04,IR code error or fail to send the IR signal")
 		{};
 	};
 	static StatusCode statusCode;

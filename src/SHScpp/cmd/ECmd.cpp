@@ -240,6 +240,70 @@ void ZB_read::onATReceive(){
 			this->cmdFinish();
 	}
 }
+void ZB_set::onRabbitMQReceive(){
+	int NWK;
+	int EP;
+	if((NWK=this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString())) >0 &&
+			(EP=this->container->lookup.getDevT_EP(this->rabbitMQMesg["ZB_type"].asInt()))>0){
+		//find the dev in the addr tranlation table,
+		//meaning there is such a dev in the ZigBee network but not in value table
+		//so read value from ZigBee network
+		/*
+		 AT+WRITEATR:39c5,15,0,6,0,20,1
+		 WRITEATR:<Address>,<EP>,[<SendMode>],<ClusterID>,<AttrID>,<DataType>,<Data>
+		 OK
+		 WRITEATR:39C5,15,0006,0000,88,
+		 *
+		 */
+		this->setTTL(1500);
+		this->value = this->rabbitMQMesg["data"].asInt();
+		this->sendATCmd(("AT+WRITEATR:"+
+				this->intToHexString(NWK)+
+				","+
+				this->intToHexString(EP)+
+				",0,"+
+				this->intToHexString(this->container->lookup.getMainClusterID(EP))+
+				","+
+				this->intToHexString(this->container->lookup.getMainAttrID(EP))+
+				",20,"+
+				this->intToHexString(this->value)).c_str());
+	}else{
+		Log::log.warning("ZB_set::onRabbitMQReceive: no such device [%s]\n",this->rabbitMQMesg["ZB_MAC"].asCString());
+		this->rabbitMQMesg["data"]= -1;
+		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
+		this->sendRMsg(("ZB.set."+this->rabbitMQMesg["ZB_MAC"].asString()).c_str());
+		this->cmdFinish();
+	}
+}
+void ZB_set::onATReceive(){
+	//WRITEATR:39C5,15,0006,0000,88,
+	boost::regex expr("WRITEATR:(\\w{4}),(\\w{2}),(\\w{4}),(\\w{4}),\\w{2},(\\w{0,4})");
+	boost::sregex_iterator iter(this->ATMsg.begin(), this->ATMsg.end(), expr);
+	boost::sregex_iterator end;
+	for( ; iter != end; ++iter ) {
+		    boost::smatch const &what = *iter;
+		    //check whether the value is main value of a EndPoint
+		    if(!this->container->lookup.checkIsMainValue(
+		    		this->parseHex(what[2].str().c_str()),
+					this->parseHex(what[3].str().c_str()),
+					this->parseHex(what[4].str().c_str()))) continue;
+		    //update the value table
+		    std::string ZB_MAC = this->container->lookup.getNWK_MAC(this->parseHex(what[1].str().c_str()));
+		    this->container->lookup.updateMACDevT_value(ZB_MAC,
+		    		this->container->lookup.getEP_DevT(this->parseHex(what[2].str().c_str())),
+					value);
+			    //send to rabbitMQ
+		    this->rabbitMQMesg["status"]=this->statusCode.succeed;
+			this->sendRMsg(("ZB.set."+this->rabbitMQMesg["ZB_MAC"].asString()).c_str());
+			this->cmdFinish();
+	}
+}
+void ZB_set::onTimeOut(){
+	this->rabbitMQMesg["data"]= -1;
+	this->rabbitMQMesg["status"]=this->statusCode.ZB_time_out;
+	this->sendRMsg(("ZB.set."+this->rabbitMQMesg["ZB_MAC"].asString()).c_str());
+	this->cmdFinish();
+}
 void ZB_pjoin::onRabbitMQReceive(){
 	this->setTTL(800);
 	this->sendATCmd(("AT+PJOIN:"+this->rabbitMQMesg["data"].asString()).c_str());
@@ -414,5 +478,104 @@ void ZB_update_deactive::onTimeOut(){
 void ZB_update_deactive::renewDev(int NWK){
     ZB_update_deactive::activeMap[NWK] = ZB_update_deactive::DEAD_PERIOD;
 }
+
+
+void ZB_IR::onRabbitMQReceive(){
+	this->setTTL(500);//give command 0.5 seconds time to live, if no response in 0.5 seconds, it will time out
+	int NWK_addr =this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
+	if (NWK_addr==-1) {
+		Log::log.warning("ZB_IR::onRabbitMQReceive: no such device [%s]\n",this->rabbitMQMesg["ZB_MAC"].asCString());
+		//can not find such a device in current lookup table
+		this->rabbitMQMesg["type"]="ZB.CSLock.resp";
+		this->rabbitMQMesg["data"]=-1;
+		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
+		string defAppendixKey("ZB.CSLock."+this->rabbitMQMesg["ZB_MAC"].asString());
+		this->sendRMsg(defAppendixKey);
+		this->cmdFinish();
+		return;
+	}
+
+	std::string IR_cmd(this->rabbitMQMesg["IR_cmd"].asCString());
+	if(IR_cmd.compare("send")==0){
+		this->MsgType=0x00;
+		//AT+IR:<NWK>,<EndPoint>,<MsgType>,<code>string atCmd("AT+CSLOCK:"
+		string atCmd("AT+IR:"
+					+this->intToHexString(NWK_addr)
+					+",8D,00,"
+					+ this->rabbitMQMesg["data"].asString());
+		this->sendATCmd(atCmd);
+
+	}else if(IR_cmd.compare("rev_onoff")==0){
+		this->MsgType=0x02;
+		//AT+IR:<NWK>,<EndPoint>,<MsgType>,<code>string atCmd("AT+CSLOCK:"
+		string atCmd("AT+IR:"
+					+this->intToHexString(NWK_addr)
+					+",8D,02,"
+					+ this->intToHexString(this->rabbitMQMesg["data"].asInt()));
+		this->sendATCmd(atCmd);
+	}else{
+		this->rabbitMQMesg["type"]="ZB.IR.resp";
+		this->rabbitMQMesg["data"]=-1;
+		this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_unsupport;
+		string defAppendixKey("ZB.IR."+this->rabbitMQMesg["ZB_MAC"].asString());
+		this->sendRMsg(defAppendixKey);
+		cmdFinish();
+	}
+}
+void ZB_IR::onTimeOut(){
+	Log::log.debug("ZB_IR::onTimeOut command timeout\n");
+	this->rabbitMQMesg["type"]="ZB.IR.resp";
+	this->rabbitMQMesg["data"]=-1;
+	this->rabbitMQMesg["status"]=this->statusCode.ZB_time_out;
+	string defAppendixKey("ZB.IR."+this->rabbitMQMesg["ZB_MAC"].asString());
+	this->sendRMsg(defAppendixKey);
+	cmdFinish();//alow next command and remove it from active cmd object list
+	return;
+}
+void ZB_IR::onATReceive(){
+	//IR：<NWK>,<EndPoint>,<MsgType>,<status>
+	boost::regex expr("IR:(\\w{4}),(\\w{2}),(\\w{2}),(\\w{2})");
+	boost::smatch what;
+	if (boost::regex_search(this->ATMsg, what, expr))
+	{
+		int NWK = this->parseHex(what[1].str().c_str());
+		int EP = this->parseHex(what[2].str().c_str());
+		int MsgType = this->parseHex(what[3].str().c_str());
+		int status = this->parseHex(what[4].str().c_str());
+		if(this->rabbitMQMesg["ZB_MAC"].asString().compare(this->container->lookup.getNWK_MAC(NWK))==0
+				&& EP == 0x8D && MsgType ==this->MsgType){
+			this->rabbitMQMesg["type"]="ZB.IR.resp";
+			if(MsgType==0x00){
+				//this->rabbitMQMesg["data"];
+				//is the reply of "send" message
+				if(status ==0){
+					this->rabbitMQMesg["status"]=this->statusCode.succeed;
+					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
+					this->sendRMsg(defAppendixKey);
+				}else{
+					this->rabbitMQMesg["data"]=-1;
+					this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_failure;
+					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
+					this->sendRMsg(defAppendixKey);
+				}
+			}else if(MsgType==0x02){
+				//is the reply of "rev_onoff" message
+				if(status==0 || status ==1){
+					this->rabbitMQMesg["data"]=status;
+					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
+					this->sendRMsg(defAppendixKey);
+				}else{
+					this->rabbitMQMesg["data"]=-1;
+					this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_failure;
+					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
+					this->sendRMsg(defAppendixKey);
+				}
+			}
+			cmdFinish();//alow next command
+			return;
+		}
+	}
+}
+
 
 } /* namespace SHS */
