@@ -22,6 +22,8 @@ public:
 		void onRabbitMQReceive();
 		void onTimeOut();
 		void onATReceive();
+private:
+		bool isResponded;
 });
 
 

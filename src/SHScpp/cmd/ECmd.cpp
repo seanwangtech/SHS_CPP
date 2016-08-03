@@ -73,6 +73,7 @@ void ZB_onoff::onATReceive(){
 
 void ZB_init_discover::onRabbitMQReceive(){
 	this->setTTL(2500);
+	this->isResponded=false;
 	this->sendATCmd("AT+DISCOVER:");
 }
 void ZB_init_discover::onATReceive(){
@@ -86,9 +87,12 @@ void ZB_init_discover::onATReceive(){
 	    boost::smatch const &what = *iter;
 	    this->container->lookup.updateMAC_NWK(what[1].str().c_str(),this->parseHex(what[2].str().c_str()));
 	}
+	//the serial port is responded, so set the member field to true
+	this->isResponded=true;
 }
 void ZB_init_discover::onTimeOut(){
 	Log::log.debug("ZB_startup_discover::onTimeOut\n");
+	if(!this->isResponded) Log::log.error("ZB_startup_discover::Serial port No response \n");
 	//Log::log.debug("ZB_startup_discover::%s\n",this->container->lookup.getNWK_MAC(0x4455).c_str());
 	cmdFinish();//indicate command finished
 }
