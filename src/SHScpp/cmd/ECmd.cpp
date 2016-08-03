@@ -499,32 +499,43 @@ void ZB_IR::onRabbitMQReceive(){
 		return;
 	}
 
-	std::string IR_cmd(this->rabbitMQMesg["IR_cmd"].asCString());
-	if(IR_cmd.compare("send")==0){
-		this->MsgType=0x00;
-		//AT+IR:<NWK>,<EndPoint>,<MsgType>,<code>string atCmd("AT+CSLOCK:"
-		string atCmd("AT+IR:"
-					+this->intToHexString(NWK_addr)
-					+",8D,00,"
-					+ this->rabbitMQMesg["data"].asString());
-		this->sendATCmd(atCmd);
+	int IR_cmd= this->rabbitMQMesg["IR_cmd"].asInt();
+	//AT+IR:<NWK>,<EndPoint>,<MsgType>,<code>
+	std::string data= (this->rabbitMQMesg["data"].isNull() ? "": this->rabbitMQMesg["data"].asString());
+	string atCmd("AT+IR:"
+				+this->intToHexString(NWK_addr)
+				+",8D,"
+				+this->intToHexString(IR_cmd)
+				+","
+				+this->toHexStr(this->rabbitMQMesg["remoteId"].asInt())
+				+ data);
+	this->sendATCmd(atCmd);
+}
+std::string ZB_IR::toHexStr(int number){
+	int i=0;
+	char str[9];
+	unsigned int num = (unsigned int)number;
+	for(;i<8;i++){
+		int temp = num%16;
+		num >>= 4;
+		if(i%2==0){
+			if(temp<10 ){
+				str[i+1]=temp+'0';
+			}else{
+				str[i+1]=temp-9+'A';
+			}
+		}else{
+			if(temp<10 ){
+				str[i-1]=temp+'0';
+			}else{
+				str[i-1]=temp-9+'A';
+			}
 
-	}else if(IR_cmd.compare("rev_onoff")==0){
-		this->MsgType=0x02;
-		//AT+IR:<NWK>,<EndPoint>,<MsgType>,<code>string atCmd("AT+CSLOCK:"
-		string atCmd("AT+IR:"
-					+this->intToHexString(NWK_addr)
-					+",8D,02,"
-					+ this->intToHexString(this->rabbitMQMesg["data"].asInt()));
-		this->sendATCmd(atCmd);
-	}else{
-		this->rabbitMQMesg["type"]="ZB.IR.resp";
-		this->rabbitMQMesg["data"]=-1;
-		this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_unsupport;
-		string defAppendixKey("ZB.IR."+this->rabbitMQMesg["ZB_MAC"].asString());
-		this->sendRMsg(defAppendixKey);
-		cmdFinish();
+		}
 	}
+	str[8]='\0';
+	return std::string(str);
+
 }
 void ZB_IR::onTimeOut(){
 	Log::log.debug("ZB_IR::onTimeOut command timeout\n");
@@ -547,33 +558,17 @@ void ZB_IR::onATReceive(){
 		int MsgType = this->parseHex(what[3].str().c_str());
 		int status = this->parseHex(what[4].str().c_str());
 		if(this->rabbitMQMesg["ZB_MAC"].asString().compare(this->container->lookup.getNWK_MAC(NWK))==0
-				&& EP == 0x8D && MsgType ==this->MsgType){
+				&& EP == 0x8D && MsgType ==this->rabbitMQMesg["IR_cmd"].asInt()){
 			this->rabbitMQMesg["type"]="ZB.IR.resp";
-			if(MsgType==0x00){
-				//this->rabbitMQMesg["data"];
-				//is the reply of "send" message
-				if(status ==0){
-					this->rabbitMQMesg["status"]=this->statusCode.succeed;
-					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
-					this->sendRMsg(defAppendixKey);
-				}else{
-					this->rabbitMQMesg["data"]=-1;
-					this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_failure;
-					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
-					this->sendRMsg(defAppendixKey);
-				}
-			}else if(MsgType==0x02){
-				//is the reply of "rev_onoff" message
-				if(status==0 || status ==1){
-					this->rabbitMQMesg["data"]=status;
-					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
-					this->sendRMsg(defAppendixKey);
-				}else{
-					this->rabbitMQMesg["data"]=-1;
-					this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_failure;
-					string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
-					this->sendRMsg(defAppendixKey);
-				}
+			if(status ==0){
+				this->rabbitMQMesg["status"]=this->statusCode.succeed;
+				string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
+				this->sendRMsg(defAppendixKey);
+			}else{
+				this->rabbitMQMesg["data"]=-1;
+				this->rabbitMQMesg["status"]=this->statusCode.ZB_IR_cmd_failure;
+				string defAppendixKey("ZB.IR."+rabbitMQMesg["ZB_MAC"].asString());
+				this->sendRMsg(defAppendixKey);
 			}
 			cmdFinish();//alow next command
 			return;

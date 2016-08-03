@@ -99,8 +99,8 @@ public:
 		void onRabbitMQReceive();
 		void onTimeOut();
 		void onATReceive();
-		int MsgType;
-		ZB_IR():MsgType(-1){};
+private:
+		std::string toHexStr(int nubmer);
 });
 
 
