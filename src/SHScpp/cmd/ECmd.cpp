@@ -485,15 +485,15 @@ void ZB_update_deactive::renewDev(int NWK){
 
 
 void ZB_IR::onRabbitMQReceive(){
-	this->setTTL(500);//give command 0.5 seconds time to live, if no response in 0.5 seconds, it will time out
+	this->setTTL(1500);//give command 1.5 seconds time to live, if no response in 0.5 seconds, it will time out
 	int NWK_addr =this->container->lookup.getMAC_NWK(this->rabbitMQMesg["ZB_MAC"].asCString());
 	if (NWK_addr==-1) {
 		Log::log.warning("ZB_IR::onRabbitMQReceive: no such device [%s]\n",this->rabbitMQMesg["ZB_MAC"].asCString());
 		//can not find such a device in current lookup table
-		this->rabbitMQMesg["type"]="ZB.CSLock.resp";
+		this->rabbitMQMesg["type"]="ZB.IR.resp";
 		this->rabbitMQMesg["data"]=-1;
 		this->rabbitMQMesg["status"]=this->statusCode.ZB_no_dev;
-		string defAppendixKey("ZB.CSLock."+this->rabbitMQMesg["ZB_MAC"].asString());
+		string defAppendixKey("ZB.IR."+this->rabbitMQMesg["ZB_MAC"].asString());
 		this->sendRMsg(defAppendixKey);
 		this->cmdFinish();
 		return;
