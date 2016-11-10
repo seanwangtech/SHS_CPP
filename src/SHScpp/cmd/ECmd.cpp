@@ -31,7 +31,7 @@ void ZB_onoff::onRabbitMQReceive(){
 			+","
 			+this->intToHexString(this->container->lookup.getDevT_EP(this->rabbitMQMesg["ZB_type"].asInt()))
 			+",0,"
-			+ (data>1 ? "" :this->intToHexString(data)));
+			+ (data==2 ? "" :this->intToHexString(data)));
 	this->sendATCmd(atCmd);
 
 }
