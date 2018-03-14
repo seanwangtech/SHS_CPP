@@ -21,6 +21,7 @@ namespace SHS {
 
 #include "cmd/cmd.h"
 #include "Lookup.h"
+#include "Bindings.h"
 namespace SHS {
 class Container {
 public:
@@ -41,6 +42,7 @@ public:
 	MyMQ<Json::Value> * pRabbitMQAnalyserMQ;
 	Conf* pConf;
 	Lookup lookup;
+	Bindings bindings;
 
 private:
 	pthread_mutex_t containersMutex;

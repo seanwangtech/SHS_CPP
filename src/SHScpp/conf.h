@@ -31,7 +31,7 @@ public:
 		running
 	};
 	struct home_t{
-		long id;
+		std::string id;
 		std::string MAC;
 		AP_status_t AP_status;
 	} home;
@@ -41,7 +41,10 @@ public:
 	}serialPort;
 	struct{
 		std::string lookup_table;
+		std::string binding_table;
 	} tables_path;
+	std::string logfile;
+	int debugLevel;
 	bool load(std::string &path);
 	bool load(const char* path);
 };

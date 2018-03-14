@@ -35,8 +35,12 @@ public:
 	void delDevT_EP(int DevT);
 	void updateMACDevT_value(std::string& MAC,int DevT,int value);
 	void updateMACDevT_value(const char* MAC,int DevT,int value);
+	void updateMACDevT_value(std::string& MAC,int value);
+	void updateMACDevT_value(const char* MAC,int value);
 	void delMACDevT_value(std::string& MAC,int DevT);
 	void delMACDevT_value(const char* MAC,int DevT);
+	void delMACDevT_value(std::string& MAC);
+	void delMACDevT_value(const char* MAC);
 	bool checkIsMainValue(int EP,int clusterID,int AttrID);
 	int getMainClusterID(int EP);
 	int getMainAttrID(int EP);

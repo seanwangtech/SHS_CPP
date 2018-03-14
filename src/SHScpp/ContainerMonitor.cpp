@@ -59,7 +59,14 @@ void ContainerMonitor::manageActCmd(){
 					//remove the cmd object if its cmdTTL is marked as CMD_FINISHED_TTL_MARK
 					if(cmdTTL==Cmd::CMD_FINISHED_TTL_MARK) {
 						//the command is really time out, warn and remove it!
-						Log::log.warning("ContainerMonitor: one command timeout:%s\n",(*it)->getRabbitMQMsg()["type"].asCString());
+						//checkout if it need to warning
+						if(!(*it)->depressTimeoutWarning) {
+							//print warning
+							Log::log.warning("ContainerMonitor: one command timeout:%s\n",(*it)->getRabbitMQMsg()["type"].asCString());
+						}else{
+							//set the depress TimeoutWarning to default: false
+							(*it)->depressTimeoutWarning=false;
+						}
 						it = cmds.erase(it);
 					}
 				}

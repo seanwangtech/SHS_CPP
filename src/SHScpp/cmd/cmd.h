@@ -12,6 +12,7 @@
 #include <list>
 #include "json/json.h"
 #include <boost/regex.hpp>
+#include <fstream>
 //ninglvfeihong:below declare is important for include eachother
 namespace SHS{
 class Cmd;
@@ -36,6 +37,7 @@ public:
 	void sendRMsg(const char* defaultKeyAppendix);
 	void sendATCmd(std::string& ATCmd);
 	void sendATCmd(const char* ATCmd);
+	void ResendATCmd(int Index);
 	void sendToRabbitMQAnalyser(Json::Value & Msg);
 	void sendToRabbitMQAnalyser(std::string & cmdType);
 	void sendToRabbitMQAnalyser(const char* cmdType);
@@ -43,8 +45,13 @@ public:
 	Json::Value & getRabbitMQMsg();
 	void setTTL(int ms);
 	int _cmdTTL;
+	bool depressTimeoutWarning;
 	const static int CMD_FINISHED_TTL_MARK=-9999;
 	const static int CMD_FOREVER_TTL_MARK=-9998;
+	static const int TYPICAL_DELAY = 500; //means, typically allow 500 ms delay reponse for typical device such AS switch, socket, curtain and so on.
+	static const int RETRY_MAX  = 2;
+	bool attribute_uart_exclusive;
+
 protected:
 	pthread_mutex_t * pMutex;
 	Container* container;
@@ -53,6 +60,7 @@ protected:
 	int parseHex(std::string & hex_str);
 	int parseHex(const char* hex_str);
 	std::string intToHexString(int number);
+	int detectATErr();
 	class StatusCode{
 	public:
 		const std::string succeed;
@@ -61,17 +69,38 @@ protected:
 		const std::string ZB_AT_format_error;
 		const std::string ZB_IR_cmd_unsupport;
 		const std::string ZB_IR_cmd_failure;
+		const std::string LUA_RUN_ERROR;
+		const std::string UCI_FORMAT_ERROR;
+		const std::string RUN_TIME_ERROR;
+		const std::string MSG_FORMAT_ERROR;
+		const std::string VERIFY_ERROR;
+		const std::string UPGRADE_STAGE_ERROR1;
 		StatusCode():
 			succeed("succeed"),
 			ZB_time_out("01,time out"),
 			ZB_no_dev ("02,No such Device"),
 			ZB_AT_format_error("03,AT command format error"),
 			ZB_IR_cmd_unsupport("04,IR do not support this cmd"),
-			ZB_IR_cmd_failure("04,IR code error or fail to send the IR signal")
+			ZB_IR_cmd_failure("05,IR code error or fail to send the IR signal"),
+			LUA_RUN_ERROR("06,lua script error during perform UCI query"),
+			UCI_FORMAT_ERROR("07, the sent uci message format error"),
+			RUN_TIME_ERROR("08, system runtime error"),
+			MSG_FORMAT_ERROR("09, message format error"),
+			VERIFY_ERROR("10, verify error"),
+			UPGRADE_STAGE_ERROR1("11, cannot perform upgrade, because the system is upgrading")
 		{};
 	};
 	static StatusCode statusCode;
 
+private:
+	struct CmdHistory{
+		int currentIndex;
+		static const int length=3;
+		std::string data[length];
+		CmdHistory(){this->currentIndex=0;};
+		std::string * getCmdHistory(int index);
+		void saveCmdHistory(std::string & cmd);
+	} cmdHistory;
 };
 class ActCmd{
 public:
@@ -123,4 +152,5 @@ public:
 
 //below include cannot be place into SHS name space. should put outside SHS name space
 #include "ECmd.h"
+
 #endif /* SHSCPP_CMD_CMD_H_ */

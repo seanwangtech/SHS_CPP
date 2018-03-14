@@ -34,6 +34,7 @@ void RabbitMQAnalyser::startAnalyse(MyMQ<Json::Value> * pMQ){
 				string type_str = type.asString();
 				std::istringstream iss(type_str);
 				std::string token;
+				root["token"].clear();
 				while (std::getline(iss, token, '.')) {
 				    if (!token.empty()){
 				    	root["token"].append(token);
@@ -53,9 +54,26 @@ void RabbitMQAnalyser::startAnalyse(MyMQ<Json::Value> * pMQ){
 						//call the onRabbitMQReceive function, which is a callback function to deal with the message further
 						cmdObj->_onRabbitMQReceive(root);
 						this->pContainer->unlockContainer();
-						//wait this command finished and then start analyse next command
-						if(root["__attribute_uart_exclusive"].isNull() || root["__attribute_uart_exclusive"].asBool()){
-							cmdObj->waitCmdFinish(&mutex);
+						//figure out whether wait this command finished and then start analyse next command
+						if(cmdObj->attribute_uart_exclusive){
+							if((! root["__attribute_uart_exclusive"].isNull() ) && (! root["__attribute_uart_exclusive"].asBool())){
+								//explicitly declare that the object should be non-exclusive
+								//set the object attribute to be non-exclusive
+								cmdObj->attribute_uart_exclusive = false;
+							}else{
+								//by default just wait
+								cmdObj->waitCmdFinish(&mutex);
+							}
+						}else{
+							//check whether explicitly set the command object to exclusive
+							if(( ! root["__attribute_uart_exclusive"].isNull() )&& root["__attribute_uart_exclusive"].asBool()){
+								//explicitly declare that the object should be exclusive
+								//set the object attribute to be exclusive
+								cmdObj->attribute_uart_exclusive = true;
+								cmdObj->waitCmdFinish(&mutex);
+							}else{
+								//by default do nothing
+							}
 						}
 					}else{
 						Log::log.warning("RabbitMQAnalyser: Unsupported message type:%s\n",type_str.c_str());

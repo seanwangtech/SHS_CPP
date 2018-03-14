@@ -129,6 +129,31 @@ void Lookup::updateMACDevT_value(const char* MAC,int DevT,int value){
 	std::string str(MAC);
 	this->updateMACDevT_value(str,DevT,value);
 }
+//update all ZB_type in one MAC to a value, if find nothing, do nothing
+void Lookup::updateMACDevT_value(std::string& MAC,int value){
+
+	if(this->MACDevT_values.empty()){
+		//the list is empty, return
+		return;
+	}
+	std::list<struct MACDevT_value_t>::iterator it = this->MACDevT_values.begin();
+	while(it != this->MACDevT_values.end()){
+		if(it->MAC.compare(MAC)==0){
+			//the the data, so change the value
+			it->value = value;
+		}else{
+			it++;
+		}
+	}
+	if(it == this->MACDevT_values.end()){
+		//meaning find nothing, return
+		return;
+	}
+}
+void Lookup::updateMACDevT_value(const char* MAC,int value){
+	std::string str(MAC);
+	this->updateMACDevT_value(str,value);
+}
 void Lookup::delMACDevT_value(std::string& MAC,int DevT){
 	if(this->MACDevT_values.empty()) return;
 	std::list<struct MACDevT_value_t>::iterator it = this->MACDevT_values.begin();
@@ -145,7 +170,22 @@ void Lookup::delMACDevT_value(const char* MAC,int DevT){
 	std::string str(MAC);
 	this->delMACDevT_value(str,DevT);
 }
+void Lookup::delMACDevT_value(std::string& MAC){
+	if(this->MACDevT_values.empty()) return;
+	std::list<struct MACDevT_value_t>::iterator it = this->MACDevT_values.begin();
+	while(it != this->MACDevT_values.end()){
+		if(it->MAC.compare(MAC)==0){
+			it = this->MACDevT_values.erase(it);
+		}else{
+			it++;
+		}
+	}
+}
 
+void Lookup::delMACDevT_value(const char* MAC){
+	std::string str(MAC);
+	this->delMACDevT_value(str);
+}
 bool Lookup::checkIsMainValue(int EP,int clusterID,int AttrID){
 	std::list<struct Checker_t>::iterator it = this->checker.begin();
 	for(;it!=this->checker.end();it++){

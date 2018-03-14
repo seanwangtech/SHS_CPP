@@ -18,6 +18,7 @@ Container::Container(Conf &conf):
 	pthread_mutex_init(&this->containersMutex,NULL);
 	this->delayInitCmdObj();
 	lookup.load(conf);
+	bindings.load(conf);
 }
 
 Container::~Container() {

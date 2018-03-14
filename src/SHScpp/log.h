@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <pthread.h>
+#include "conf.h"
 namespace SHS {
 
 class Log {
@@ -21,10 +22,16 @@ public:
 	void debug(const char* format,...);
 	void vrecord(const char* format,__gnuc_va_list args);
 	void record(const char* format,...);
+	void setConf(Conf &conf);
+	void setLogFile(const char* logfile);
+	void setDebugLevel(int debugLevel);
+	static unsigned long get_file_size(const char *path);
 	static Log log;
 private:
+	void checkLogfile();
 	bool firstLog;
-	const char * const logFile;
+	std::string logFile;
+	int debugLevel;
 	pthread_mutex_t mutex;
 };
 

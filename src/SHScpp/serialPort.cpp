@@ -18,8 +18,8 @@
 
 namespace SHS {
 
-#define MIN_DATA_LEN 255
-#define WAIT_TIME 1 //unit is every 100 ms
+#define MIN_DATA_LEN 1 //return as soon as possible once receive 1 character
+#define WAIT_TIME 1 //useles when MIN_DATA_LEN=1
 using std::string;
 SerialPort::SerialPort(Conf &conf):fd(0),isOpen(false),pLMQ(NULL){
 		port=conf.serialPort.port;
@@ -194,23 +194,40 @@ void SerialPort::listen(MyMQ<string> *mq){
 	}
 
 }
+
+char SerialPort::calcFCS( const char *msg_ptr, int len )
+{
+  char x;
+  char xorResult;
+
+  xorResult = 0;
+
+  for ( x = 0; x < len; x++, msg_ptr++ )
+    xorResult = xorResult ^ *msg_ptr;
+  return ( xorResult );
+}
 void SerialPort::directSend(string & cmd){
 	int n_written = 0,
 	spot = 0;
 
 		//Initialise the output buffer
-	char output[cmd.length()+2];
+	char output[cmd.length()+3];
 
 		//Add the control characters
 	memcpy(output,cmd.c_str(),cmd.length());
 	output[cmd.length()]='\r';
-	output[cmd.length()+1]='\0';
-
-		//Write all the characters
+	//FCS
+	output[cmd.length()+1]=this->calcFCS(output+2,cmd.length()-1);
+	output[cmd.length()+2]='\0';
+	//write a useless character to avoid fist-byte lost problem of serial port communication.
+	write( fd, "\0", 1 );
+	//Write all the other characters
 	do {
 			n_written = write( fd, &output[spot], 1 );
 			spot += n_written;
 	} while (output[spot-1] != '\0' && n_written > 0);
+	output[cmd.length()]='\0';
+	Log::log.debug("SerialPort::directSend status:n_written=%d,spot=%d,output=%s \n",n_written,spot,output);
 }
 
 struct serialPortListenThreadPara_t{
@@ -236,6 +253,7 @@ void SerialPort::startSender(MyMQ<std::string>* pMQ){
 	while(1){
 		std::string msg= pMQ->getOneMSG();
 		this->directSend(msg);
+		usleep(20000);//minimum gap between each AT command
 	}
 }
 
@@ -252,12 +270,11 @@ void SerialPort::startSenderAsThread(MyMQ<std::string>* pMQ){
 	pthread_create (&thread, NULL,serialPortSenderThread, (void*) &para);
 	pthread_detach(thread);
 }
-
 char* SerialPort::readPort(){
 	/*static keep data the data in a safe place so that when function return,
  	 the data will not lost,however, this lead this funciton cannot be re-entry:
 	 meaning this function can not be called in two thread at same time*/
-	static char buffer[4096];
+	static char buffer[8000];
 	int pre_pos=0;//ninglvfeihong:to recode the position in buffer which full of data
 	//ninglvfeihong: optimized
 	//memset(buffer, 0, sizeof(buffer));
@@ -265,7 +282,8 @@ char* SerialPort::readPort(){
 	//ninglvfeihong modified
 	while((read_len =read( fd, (buffer+pre_pos), sizeof(buffer)-pre_pos-1 )) != -1)
 	{
-			//ninglvfeihog: remove '\0', optimize the read data
+		if(read_len==0) return buffer;
+		//ninglvfeihog: remove '\0', optimize the read data
 		int zero_count=0;
 		for(int i=0;i<read_len;i++){
 			if(zero_count)buffer[pre_pos+i-zero_count] = buffer[pre_pos+i];
@@ -282,38 +300,88 @@ char* SerialPort::readPort(){
 			}
 		 	 */
 		pre_pos+=read_len;
-		if(read_len  <  MIN_DATA_LEN-zero_count ){//minus zero_count is very important
-			//ninglvfeihong: the following data is not successive
-			buffer[pre_pos] = '\0';//finish the string
-			return buffer;
-		}else{
-			//the following data is successive
-			if(sizeof(buffer)-pre_pos< MIN_DATA_LEN){//ninglvfeihong: buffer[] space is insufficient
-				buffer[pre_pos] = '\0';//finish the string
-				return buffer;//there is a risk for the buffer data, because the data is in stack are temporary
+
+		if(pre_pos>=4){
+			//we may need to consider return from function due to this is at least 4 data received
+			//for example "\n+PJOIN:permit join commmand\r\nOK\r\n". this will be interpreted to two messages
+			//	1."\n+PJOIN:permit join commmand\r\n"
+			//	2."OK\r\n"
+			// so the minimum pre_pos for a useful message is 4.
+			if(buffer[pre_pos-2] == '\r' && buffer[pre_pos-1] == '\n'){
+				buffer[pre_pos]='\0';
+				return buffer;
 			}else{
-				if(buffer[pre_pos-2]=='\r'&&buffer[pre_pos-1]=='\n'){
-					//indicating the AT conmand response just right finished
-					buffer[pre_pos] = '\0';//finish the string/
-					return buffer;//there is a risk for the buffer data, because the data is in stack are temporary
-				}else{
-					//ninglvfeihong: there are enough space for next reading in buffer[]
-					//do nothing just continue reading
-					//continue reading
-				}
+				continue;
 			}
+
+		}else{
+			continue;
 		}
-		/*
-		//Check for end of line and remove it
-		if(buffer[strlen(buffer)-1] == '\r' || buffer[strlen(buffer)-1] == '\n')
-			buffer[strlen(buffer)-1] = '\0';
-			//Copy the useful buffer and return
-		return (char*)buffer;
-		 */
 	}
-	//Else return null
 	return NULL;
 }
+
+//char* SerialPort::readPort(){
+//	/*static keep data the data in a safe place so that when function return,
+// 	 the data will not lost,however, this lead this funciton cannot be re-entry:
+//	 meaning this function can not be called in two thread at same time*/
+//	static char buffer[4096];
+//	int pre_pos=0;//ninglvfeihong:to recode the position in buffer which full of data
+//	//ninglvfeihong: optimized
+//	//memset(buffer, 0, sizeof(buffer));
+//	int read_len=0;
+//	//ninglvfeihong modified
+//	while((read_len =read( fd, (buffer+pre_pos), sizeof(buffer)-pre_pos-1 )) != -1)
+//	{
+//			//ninglvfeihog: remove '\0', optimize the read data
+//		int zero_count=0;
+//		for(int i=0;i<read_len;i++){
+//			if(zero_count)buffer[pre_pos+i-zero_count] = buffer[pre_pos+i];
+//			if(buffer[i+pre_pos]=='\0'){
+//				zero_count++;
+//			}
+//		}
+//		read_len-=zero_count;
+//
+//			//the code is print out the received data in hex format
+//			/*
+//			for(int i=0;i<read_len;i++){
+//				printf("%.2X ",buffer[pre_pos+i]);
+//			}
+//		 	 */
+//		pre_pos+=read_len;
+//		if(read_len  <  MIN_DATA_LEN-zero_count ){//minus zero_count is very important
+//			//ninglvfeihong: the following data is not successive
+//			buffer[pre_pos] = '\0';//finish the string
+//			return buffer;
+//		}else{
+//			//the following data is successive
+//			if(sizeof(buffer)-pre_pos< MIN_DATA_LEN){//ninglvfeihong: buffer[] space is insufficient
+//				buffer[pre_pos] = '\0';//finish the string
+//				return buffer;//there is a risk for the buffer data, because the data is in stack are temporary
+//			}else{
+//				if(buffer[pre_pos-2]=='\r'&&buffer[pre_pos-1]=='\n'){
+//					//indicating the AT conmand response just right finished
+//					buffer[pre_pos] = '\0';//finish the string/
+//					return buffer;//there is a risk for the buffer data, because the data is in stack are temporary
+//				}else{
+//					//ninglvfeihong: there are enough space for next reading in buffer[]
+//					//do nothing just continue reading
+//					//continue reading
+//				}
+//			}
+//		}
+//		/*
+//		//Check for end of line and remove it
+//		if(buffer[strlen(buffer)-1] == '\r' || buffer[strlen(buffer)-1] == '\n')
+//			buffer[strlen(buffer)-1] = '\0';
+//			//Copy the useful buffer and return
+//		return (char*)buffer;
+//		 */
+//	}
+//	//Else return null
+//	return NULL;
+//}
 
 
 

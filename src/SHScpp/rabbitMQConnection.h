@@ -10,6 +10,7 @@
 #include "conf.h"
 #include <pthread.h>
 #include <unistd.h>
+#include <list>
 namespace SHS {
 class Channel;
 class RabbitMQConnection;
@@ -20,8 +21,8 @@ public:
 	virtual ~Channel();
 	void publish(const std::string& exchange,const std::string& routing_key,const std::string& mesg );
 	void publish(const std::string& routing_key,const std::string& mesg );
-	void binding(const std::string& routing_key);
-	void unbinding(const std::string& routing_key);
+	void addBinding(const std::string& routing_key);
+	void delBinding(const std::string& routing_key);
 
 	class Callable_string{
 	public:
@@ -40,11 +41,15 @@ public:
 	void listen(Callable_envelope& callback);
 	void listen(Callback_string_t callback);
 	void listen(Callback_envelope_t callback);
+	int heartbeat_send(const char * info);
 
 private:
 	amqp_channel_t channel_n;
 	RabbitMQConnection * conn_ptr;
 	std::string queue_name;
+	std::list<std::string> bindings;
+	void binding();
+	void unbinding(const std::string& routing_key);
 };
 
 class RabbitMQConnection {

@@ -36,6 +36,7 @@ void RabbitMQReceiver::startReceive(Conf & conf,MyMQ<Json::Value>* pMQ){
 				Log::log.warning(ss.str().c_str());
 			}else{
 				if(&mq){
+					Log::log.debug("RabbitMQReceiver::startReceive::callback: send message to rabbitMQAnalyser\n");
 					mq.sendMSG(root);
 				}else{
 					Log::log.error("rabbitMQReceiver do not have a valid MyMQ: pMQ addr:%d\n",&mq);
@@ -45,13 +46,13 @@ void RabbitMQReceiver::startReceive(Conf & conf,MyMQ<Json::Value>* pMQ){
 		MyMQ<Json::Value> &mq;
 	};
 	if(conf.home.AP_status==Conf::pre_init){
-		chann.binding("pre_init.AP_C.#");
-		chann.binding("pre_init."+conf.home.MAC+".AP_C.#");
+		chann.addBinding("pre_init.AP_C.#");
+		chann.addBinding("pre_init."+conf.home.MAC+".AP_C.#");
 	}else{
-		chann.binding("APs.AP_C.#");
+		chann.addBinding("APs.AP_C.#");
 		std::ostringstream ss;
 		ss<<"APs."<<conf.home.id<<".AP_C.#";
-		chann.binding(ss.str());
+		chann.addBinding(ss.str());
 	}
 	Callback f(*this->pMQ);
 	chann.listen(f);

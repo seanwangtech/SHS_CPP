@@ -13,11 +13,11 @@ namespace SHS {
 
 Conf::Conf(){
 	//this->rabbitmq.hostname="shs.ninglvfeihong.com";
-	this->rabbitmq.hostname="101.200.171.184";
+	this->rabbitmq.hostname="amqp.baiyatech.com";
 	this->rabbitmq.port=5672;
 	this->rabbitmq.vhost="/";
-	this->rabbitmq.user="shs";
-	this->rabbitmq.password="accessnet10";
+	this->rabbitmq.user="shs-ap2";
+	this->rabbitmq.password="T7ibPV0R7zPg";
 	this->rabbitmq.exchange="SHS";
 	this->home.AP_status=running;
 	this->home.id=1;
@@ -25,7 +25,9 @@ Conf::Conf(){
 	this->serialPort.baudrate=115200;
 	this->serialPort.port="/dev/ttyUSB0";
 	this->tables_path.lookup_table = "/etc/SHS/lookup.json";
-
+	this->tables_path.binding_table = "/etc/SHS/bindings.json";
+	this->logfile = "/etc/SHS/shs.log";
+	this->debugLevel = 3; //default print all the debug information 0:none 1:just error 2: error and warning 3: all debug information
 }
 
 Conf::~Conf() {
@@ -55,12 +57,8 @@ bool Conf::load(std::string & path){
 	if(! root["rabbitmq"]["exchange"].isNull())
 		this->rabbitmq.exchange =root["rabbitmq"]["exchange"].asString();
 	if(! root["home"]["id"].isNull()){
-		int id = root["home"]["id"].asInt();
-		if(id==-1){
-			Log::log.error("Please configure hoem.id in %s\n",path.c_str());
-		}else{
-			this->home.id =root["home"]["id"].asInt();
-		}
+		this->home.id = root["home"]["id"].asString();
+
 	}
 	if(! root["serialport"]["port"].isNull())
 		this->serialPort.port =root["serialport"]["port"].asString();
@@ -68,6 +66,12 @@ bool Conf::load(std::string & path){
 		this->serialPort.baudrate =root["serialport"]["baudrate"].asInt();
 	if(! root["tables_path"]["lookup_table"].isNull())
 		this->tables_path.lookup_table =root["tables_path"]["lookup_table"].asString();
+	if(! root["tables_path"]["binding_table"].isNull())
+		this->tables_path.binding_table =root["tables_path"]["binding_table"].asString();
+	if(! root["logfile"].isNull())
+		this->logfile =root["logfile"].asString();
+	if(! root["debugLevel"].isNull())
+		this->debugLevel =root["debugLevel"].asInt();
 	//Log::log.debug("Lookup::load: EP %d\n",this->getDevT_EP(23));
 	return true;
 }

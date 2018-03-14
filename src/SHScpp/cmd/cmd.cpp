@@ -10,7 +10,9 @@
 namespace SHS {
 using std::string;
 Cmd::StatusCode Cmd::statusCode;
-Cmd::Cmd():_cmdTTL(0),pMutex(NULL),container(NULL) {
+Cmd::Cmd():_cmdTTL(0),depressTimeoutWarning(false),
+		attribute_uart_exclusive(true),
+		pMutex(NULL),container(NULL){
 	this->rabbitMQMesg["type"]="default";
 
 }
@@ -72,6 +74,31 @@ std::string Cmd::intToHexString(int number){
 	stream << std::hex << number;
 	return stream.str();
 }
+
+int Cmd::detectATErr(){
+	boost::regex expr("ERROR:(\\w{2})");
+	boost::smatch what;
+	if (boost::regex_search(this->ATMsg, what, expr))
+	{
+		return this->parseHex(what[1].str().c_str());
+	}
+	return 0;
+}
+
+std::string * Cmd::CmdHistory::getCmdHistory(int index){
+	if(index > this->length){
+		return NULL;
+	}else if(index<=0){
+		return NULL;
+	}else{
+		return &(this->data[(this->currentIndex + this->length - index) % this->length]);
+	}
+	return NULL;
+}
+void Cmd::CmdHistory::saveCmdHistory(string & cmd){
+	this->data [this->currentIndex] = cmd;
+	currentIndex = (currentIndex+1)%length;
+}
 void Cmd::_onRabbitMQReceive(Json::Value & Msg){
 	this->rabbitMQMesg=Msg;
 	this->onRabbitMQReceive();
@@ -109,8 +136,24 @@ void Cmd::sendATCmd(std::string& ATCmd){
 
 	if(this->container->pSerialSenderMQ){
 		this->container->pSerialSenderMQ->sendMSG(ATCmd);
+		this->cmdHistory.saveCmdHistory(ATCmd);
 	}else{
 		Log::log.error("Cmd: sendATCmd: have no valid serialMQsenderMQ\n");
+	}
+}
+void Cmd::ResendATCmd(int index){
+
+	if(this->container->pSerialSenderMQ){
+		std::string * cmd = this->cmdHistory.getCmdHistory(index);
+		if (cmd != NULL){
+			this->container->pSerialSenderMQ->sendMSG(*cmd);
+			Log::log.warning("Cmd: resendATCmd: re-send cmd:%s\n",cmd->c_str());
+		}
+		else{
+			Log::log.warning("Cmd: resendATCmd: invalid historical command index\n");
+		}
+	}else{
+		Log::log.error("Cmd: resendATCmd: have no valid serialMQsenderMQ\n");
 	}
 }
 void Cmd::sendATCmd(const char* ATCmd){
@@ -156,7 +199,7 @@ void Delay_init_cmdobj::onTimeOut(){
 
 	//start-up discover help to built NAT talbe
 	this->sendToRabbitMQAnalyser("ZB.init.discover");
-
+    this->sendToRabbitMQAnalyser("ZB.init.readsn");
 	//deal with update message!!
 	//Cmd* cmdObj;
 	//cmdObj=this->container->getCmdObj("ZB_update");
@@ -164,11 +207,19 @@ void Delay_init_cmdobj::onTimeOut(){
 	//this->container->regActCmd(cmdObj);
 	Json::Value msg;
 	msg["type"]="ZB.update.req";
+	//__attribute_uart_exclusive, this attribute is only used by internal, will set one command object to be exclusive
 	msg["__attribute_uart_exclusive"]=false;  //attribute is non exclusive
 	this->sendToRabbitMQAnalyser(msg);
 	msg["type"]="ZB.update.deactive.init";
 	this->sendToRabbitMQAnalyser(msg); //attribute is non exclusive
+	msg["type"]="AMQPHeartBeat.init";
+	this->sendToRabbitMQAnalyser(msg); //attribute is non exclusive
+	msg["type"]="ZB.binding.server.init";
+	this->sendToRabbitMQAnalyser(msg); //attribute is non exclusive
+	msg["type"]="AP.keepAlive.init";
+	this->sendToRabbitMQAnalyser(msg); //attribute is non exclusive
 
+	this->depressTimeoutWarning=true;
 	this->cmdFinish();
 
 }

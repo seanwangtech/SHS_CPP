@@ -30,6 +30,16 @@ void RabbitMQSender::startSend(Conf &conf,MyMQ<Json::Value>* pMQ){
 
 	while(1){
 		Json::Value msg= pMQ->getOneMSG();
+
+
+		Json::Value msg_type = msg["type"];
+		if((! msg_type.isNull()) &&
+			msg_type.asString().compare("AMQPHeartBeat.req")==0){
+			//send the heart beat
+				chann.heartbeat_send("Sender");
+				continue;
+		}
+
 		msg.removeMember("token");
 		Json::Value reply_to = msg["reply_to"];
 		if(reply_to.isNull()){

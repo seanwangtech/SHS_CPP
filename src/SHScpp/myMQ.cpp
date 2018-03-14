@@ -27,6 +27,10 @@ template<class T>
 void SHS::MyMQ<T>::sendMSG(T & js){
 
 	pthread_mutex_lock(&mutex);
+	if(mq.size()>20){
+		//limit the mq size in a reasonable size by remove old message
+		mq.pop_front();
+	}
 	mq.push_back(js);
 	pthread_cond_signal(&cond);
 	pthread_mutex_unlock(&mutex);

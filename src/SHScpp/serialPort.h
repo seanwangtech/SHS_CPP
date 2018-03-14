@@ -28,6 +28,7 @@ public:
 private:
 	void openPort();
 	char* readPort();
+	char calcFCS( const char *msg_ptr, int len );
 	unsigned int baudrate;
 	std::string port;
 	int fd;
