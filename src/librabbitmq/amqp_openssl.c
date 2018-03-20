@@ -29,18 +29,22 @@
 #include "config.h"
 #endif
 
+#include "amqp_openssl_bio.h"
+#include "amqp_openssl_hostname_validation.h"
 #include "amqp_ssl_socket.h"
 #include "amqp_socket.h"
-#include "amqp_hostcheck.h"
 #include "amqp_private.h"
 #include "amqp_time.h"
 #include "threads.h"
 
 #include <ctype.h>
+#include <limits.h>
+#include <openssl/bio.h>
 #include <openssl/conf.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#include <openssl/engine.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -56,12 +60,8 @@ static amqp_boolean_t openssl_initialized = 0;
 static unsigned long amqp_ssl_threadid_callback(void);
 static void amqp_ssl_locking_callback(int mode, int n, const char *file, int line);
 
-#ifdef _WIN32
-static long win32_create_mutex = 0;
-static pthread_mutex_t openssl_init_mutex = NULL;
-#else
 static pthread_mutex_t openssl_init_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
+
 static pthread_mutex_t *amqp_openssl_lockarray = NULL;
 #endif /* ENABLE_THREAD_SAFETY */
 
@@ -78,9 +78,15 @@ struct amqp_ssl_socket_t {
 static ssize_t amqp_ssl_socket_send(void *base, const void *buf, size_t len,
                                     AMQP_UNUSED int flags) {
   struct amqp_ssl_socket_t *self = (struct amqp_ssl_socket_t *)base;
-  ssize_t res;
+  int res;
   if (-1 == self->sockfd) {
     return AMQP_STATUS_SOCKET_CLOSED;
+  }
+
+  /* SSL_write takes an int for length of buffer, protect against len being
+   * larger than larger than what SSL_write can take */
+  if (len > INT_MAX) {
+    return AMQP_STATUS_INVALID_PARAMETER;
   }
 
   ERR_clear_error();
@@ -88,7 +94,7 @@ static ssize_t amqp_ssl_socket_send(void *base, const void *buf, size_t len,
 
   /* This will only return on error, or once the whole buffer has been
    * written to the SSL stream. See SSL_MODE_ENABLE_PARTIAL_WRITE */
-  res = SSL_write(self->ssl, buf, len);
+  res = SSL_write(self->ssl, buf, (int)len);
   if (0 >= res) {
     self->internal_error = SSL_get_error(self->ssl, res);
     /* TODO: Close connection if it isn't already? */
@@ -111,7 +117,7 @@ static ssize_t amqp_ssl_socket_send(void *base, const void *buf, size_t len,
     self->internal_error = 0;
   }
 
-  return res;
+  return (ssize_t)res;
 }
 
 static ssize_t
@@ -121,14 +127,21 @@ amqp_ssl_socket_recv(void *base,
                      AMQP_UNUSED int flags)
 {
   struct amqp_ssl_socket_t *self = (struct amqp_ssl_socket_t *)base;
-  ssize_t received;
+  int received;
   if (-1 == self->sockfd) {
     return AMQP_STATUS_SOCKET_CLOSED;
   }
+
+  /* SSL_read takes an int for length of buffer, protect against len being
+   * larger than larger than what SSL_read can take */
+  if (len > INT_MAX) {
+    return AMQP_STATUS_INVALID_PARAMETER;
+  }
+
   ERR_clear_error();
   self->internal_error = 0;
 
-  received = SSL_read(self->ssl, buf, len);
+  received = SSL_read(self->ssl, buf, (int)len);
   if (0 >= received) {
     self->internal_error = SSL_get_error(self->ssl, received);
     switch (self->internal_error) {
@@ -147,111 +160,7 @@ amqp_ssl_socket_recv(void *base,
     }
   }
 
-  return received;
-}
-
-static int match(ASN1_STRING *entry_string, const char *string)
-{
-  unsigned char *utf8_value = NULL, *cp, ch;
-  int utf8_length, status = 1;
-  utf8_length = ASN1_STRING_to_UTF8(&utf8_value, entry_string);
-  if (0 > utf8_length) {
-    goto error;
-  }
-  while (utf8_length > 0 && utf8_value[utf8_length - 1] == 0) {
-    --utf8_length;
-  }
-  if (utf8_length >= 256) {
-    goto error;
-  }
-  if ((size_t)utf8_length != strlen((char *)utf8_value)) {
-    goto error;
-  }
-  for (cp = utf8_value; (ch = *cp) != '\0'; ++cp) {
-    if (isascii(ch) && !isprint(ch)) {
-      goto error;
-    }
-  }
-  if (!amqp_hostcheck((char *)utf8_value, string)) {
-    goto error;
-  }
-exit:
-  OPENSSL_free(utf8_value);
-  return status;
-error:
-  status = 0;
-  goto exit;
-}
-
-/* Does this hostname match an entry in the subjectAltName extension?
- * returns: 0 if no, 1 if yes, -1 if no subjectAltName entries were found.
- */
-static int hostname_matches_subject_alt_name(const char *hostname, X509 *cert)
-{
-  int found_any_entries = 0;
-  int found_match;
-  GENERAL_NAME *namePart = NULL;
-  STACK_OF(GENERAL_NAME) *san =
-    (STACK_OF(GENERAL_NAME)*) X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
-
-  while (sk_GENERAL_NAME_num(san) > 0)
-  {
-    namePart = sk_GENERAL_NAME_pop(san);
-
-    if (namePart->type == GEN_DNS) {
-      found_any_entries = 1;
-      found_match = match(namePart->d.uniformResourceIdentifier, hostname);
-      if (found_match)
-        return 1;
-    }
-  }
-
-  return (found_any_entries ? 0 : -1);
-}
-
-static int hostname_matches_subject_common_name(const char *hostname, X509 *cert)
-{
-  X509_NAME *name;
-  X509_NAME_ENTRY *name_entry;
-  int position;
-  ASN1_STRING *entry_string;
-
-  name = X509_get_subject_name(cert);
-  position = -1;
-  for (;;) {
-    position = X509_NAME_get_index_by_NID(name, NID_commonName, position);
-    if (position == -1)
-      break;
-    name_entry = X509_NAME_get_entry(name, position);
-    entry_string = X509_NAME_ENTRY_get_data(name_entry);
-    if (match(entry_string, hostname))
-      return 1;
-  }
-  return 0;
-}
-
-static int
-amqp_ssl_socket_verify_hostname(void *base, const char *host)
-{
-  struct amqp_ssl_socket_t *self = (struct amqp_ssl_socket_t *)base;
-  int status = 0;
-  X509 *cert;
-  int res;
-  cert = SSL_get_peer_certificate(self->ssl);
-  if (!cert) {
-    goto error;
-  }
-  res = hostname_matches_subject_alt_name(host, cert);
-  if (res != 1) {
-    res = hostname_matches_subject_common_name(host, cert);
-    if (!res)
-      goto error;
-  }
-exit:
-  return status;
-error:
-  status = -1;
-  goto exit;
+  return (ssize_t)received;
 }
 
 static int
@@ -261,6 +170,8 @@ amqp_ssl_socket_open(void *base, const char *host, int port, struct timeval *tim
   long result;
   int status;
   amqp_time_t deadline;
+  X509 *cert;
+  BIO *bio;
   if (-1 != self->sockfd) {
     return AMQP_STATUS_SOCKET_INUSE;
   }
@@ -286,12 +197,14 @@ amqp_ssl_socket_open(void *base, const char *host, int port, struct timeval *tim
     goto error_out1;
   }
 
-  status = SSL_set_fd(self->ssl, self->sockfd);
-  if (!status) {
-    self->internal_error = SSL_get_error(self->ssl, status);
-    status = AMQP_STATUS_SSL_ERROR;
+  bio = BIO_new(amqp_openssl_bio());
+  if (!bio) {
+    status = AMQP_STATUS_NO_MEMORY;
     goto error_out2;
   }
+
+  BIO_set_fd(bio, self->sockfd, BIO_NOCLOSE);
+  SSL_set_bio(self->ssl, bio, bio);
 
 start_connect:
   status = SSL_connect(self->ssl);
@@ -313,29 +226,45 @@ start_connect:
     goto error_out2;
   }
 
+  cert = SSL_get_peer_certificate(self->ssl);
+
   if (self->verify_peer) {
+    if (!cert) {
+      self->internal_error = 0;
+      status = AMQP_STATUS_SSL_PEER_VERIFY_FAILED;
+      goto error_out3;
+    }
+
     result = SSL_get_verify_result(self->ssl);
     if (X509_V_OK != result) {
       self->internal_error = result;
       status = AMQP_STATUS_SSL_PEER_VERIFY_FAILED;
-      goto error_out3;
+      goto error_out4;
     }
   }
   if (self->verify_hostname) {
-    int verify_status = amqp_ssl_socket_verify_hostname(self, host);
-    if (verify_status) {
+    if (!cert) {
       self->internal_error = 0;
       status = AMQP_STATUS_SSL_HOSTNAME_VERIFY_FAILED;
       goto error_out3;
     }
+
+    if (AMQP_HVR_MATCH_FOUND != amqp_ssl_validate_hostname(host, cert)) {
+      self->internal_error = 0;
+      status = AMQP_STATUS_SSL_HOSTNAME_VERIFY_FAILED;
+      goto error_out4;
+    }
   }
 
+  X509_free(cert);
   self->internal_error = 0;
   status = AMQP_STATUS_OK;
 
 exit:
   return status;
 
+error_out4:
+  X509_free(cert);
 error_out3:
   SSL_shutdown(self->ssl);
 error_out2:
@@ -483,7 +412,6 @@ password_cb(AMQP_UNUSED char *buffer,
             AMQP_UNUSED void *user_data)
 {
   amqp_abort("rabbitmq-c does not support password protected keys");
-  return 0;
 }
 
 int
@@ -499,12 +427,15 @@ amqp_ssl_socket_set_key_buffer(amqp_socket_t *base,
   if (base->klass != &amqp_ssl_socket_class) {
     amqp_abort("<%p> is not of type amqp_ssl_socket_t", base);
   }
+  if (n > INT_MAX) {
+    return AMQP_STATUS_INVALID_PARAMETER;
+  }
   self = (struct amqp_ssl_socket_t *)base;
   status = SSL_CTX_use_certificate_chain_file(self->ctx, cert);
   if (1 != status) {
     return AMQP_STATUS_SSL_ERROR;
   }
-  buf = BIO_new_mem_buf((void *)key, n);
+  buf = BIO_new_mem_buf((void *)key, (int)n);
   if (!buf) {
     goto error;
   }
@@ -666,21 +597,6 @@ static int
 initialize_openssl(void)
 {
 #ifdef ENABLE_THREAD_SAFETY
-#ifdef _WIN32
-  /* No such thing as PTHREAD_INITIALIZE_MUTEX macro on Win32, so we use this */
-  if (NULL == openssl_init_mutex) {
-    while (InterlockedExchange(&win32_create_mutex, 1) == 1)
-      /* Loop, someone else is holding this lock */ ;
-
-    if (NULL == openssl_init_mutex) {
-      if (pthread_mutex_init(&openssl_init_mutex, NULL)) {
-        return -1;
-      }
-    }
-    InterlockedExchange(&win32_create_mutex, 0);
-  }
-#endif /* _WIN32 */
-
   if (pthread_mutex_lock(&openssl_init_mutex)) {
     return -1;
   }
@@ -747,8 +663,19 @@ destroy_openssl(void)
      * safely. We do leak the amqp_openssl_lockarray. Which is only
      * an issue if you repeatedly unload and load the library
      */
+    ERR_remove_state(0);
+    FIPS_mode_set(0);
     CRYPTO_set_locking_callback(NULL);
     CRYPTO_set_id_callback(NULL);
+    ENGINE_cleanup();
+    CONF_modules_free();
+    EVP_cleanup();
+    CRYPTO_cleanup_all_ex_data();
+    ERR_free_strings();
+    openssl_initialized = 0;
+    #if (OPENSSL_VERSION_NUMBER >= 0x10002003L)
+      SSL_COMP_free_compression_methods();
+    #endif
   }
 
   pthread_mutex_unlock(&openssl_init_mutex);

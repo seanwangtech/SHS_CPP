@@ -29,11 +29,11 @@
 #include "amqp_tcp_socket.h"
 
 #include <errno.h>
-#ifdef _WIN32
+#if ((defined(_WIN32)) || (defined(__MINGW32__)) || (defined(__MINGW64__)))
 # ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
 # endif
-# include <WinSock2.h>
+# include <winsock2.h>
 #else
 # include <sys/socket.h>
 # include <netinet/in.h>
@@ -69,7 +69,9 @@ amqp_tcp_socket_send(void *base, const void *buf, size_t len, int flags)
   if (flags & AMQP_SF_MORE) {
     flagz |= MSG_MORE;
   }
-#elif defined(TCP_NOPUSH)
+  /* Cygwin defines TCP_NOPUSH, but trying to use it will return not
+   * implemented. Disable it here. */
+#elif defined(TCP_NOPUSH) && !defined(__CYGWIN__)
   if (flags & AMQP_SF_MORE && !(self->state & AMQP_SF_MORE)) {
     int one = 1;
     res = setsockopt(self->sockfd, IPPROTO_TCP, TCP_NOPUSH, &one, sizeof(one));

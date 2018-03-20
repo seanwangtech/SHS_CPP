@@ -224,7 +224,7 @@ AMQP_BEGIN_DECLS
 
 #define AMQP_VERSION_MAJOR 0
 #define AMQP_VERSION_MINOR 8
-#define AMQP_VERSION_PATCH 0
+#define AMQP_VERSION_PATCH 1
 #define AMQP_VERSION_IS_RELEASE 0
 
 
@@ -359,6 +359,17 @@ AMQP_CALL amqp_version(void);
  * \since v0.4.0
  */
 #define AMQP_DEFAULT_HEARTBEAT 0
+
+/**
+ * \def AMQP_DEFAULT_VHOST
+ *
+ * Default RabbitMQ vhost: "/"
+ *
+ * \sa amqp_login(), amqp_login_with_properties()
+ *
+ * \since v0.9.0
+ */
+#define AMQP_DEFAULT_VHOST "/"
 
 /**
  * boolean type 0 = false, true otherwise
@@ -1764,10 +1775,14 @@ AMQP_CALL amqp_get_rpc_reply(amqp_connection_state_t state);
  *              v0.4.0 they are only serviced during amqp_basic_publish() and
  *              amqp_simple_wait_frame()/amqp_simple_wait_frame_noblock()
  * \param [in] sasl_method the SASL method to authenticate with the broker.
- *              followed by the authentication information.
- *              For AMQP_SASL_METHOD_PLAIN, the AMQP_SASL_METHOD_PLAIN
- *              should be followed by two arguments in this order:
- *              const char* username, and const char* password.
+ *              followed by the authentication information. The following SASL
+ *              methods are implemented:
+ *              -  AMQP_SASL_METHOD_PLAIN, the AMQP_SASL_METHOD_PLAIN argument
+ *                 should be followed by two arguments in this order:
+ *                 const char* username, and const char* password.
+ *              -  AMQP_SASL_METHOD_EXTERNAL, the AMQP_SASL_METHOD_EXTERNAL
+ *                 argument should be followed one argument:
+ *                 const char* identity.
  * \return amqp_rpc_reply_t indicating success or failure.
  *  - r.reply_type == AMQP_RESPONSE_NORMAL. Login completed successfully
  *  - r.reply_type == AMQP_RESPONSE_LIBRARY_EXCEPTION. In most cases errors
@@ -1824,10 +1839,14 @@ AMQP_CALL amqp_login(amqp_connection_state_t state, char const *vhost,
  *             and amqp_simple_wait_frame()/amqp_simple_wait_frame_noblock()
  * \param [in] properties a table of properties to send the broker.
  * \param [in] sasl_method the SASL method to authenticate with the broker
- *             followed by the authentication information.
- *             For AMQP_SASL_METHOD_PLAN, the AMQP_SASL_METHOD_PLAIN parameter
- *             should be followed by two arguments in this order:
- *             const char* username, and const char* password.
+ *             followed by the authentication information. The following SASL
+ *             methods are implemented:
+ *             -  AMQP_SASL_METHOD_PLAIN, the AMQP_SASL_METHOD_PLAIN argument
+ *                should be followed by two arguments in this order:
+ *                const char* username, and const char* password.
+ *             -  AMQP_SASL_METHOD_EXTERNAL, the AMQP_SASL_METHOD_EXTERNAL
+ *                argument should be followed one argument:
+ *                const char* identity.
  * \return amqp_rpc_reply_t indicating success or failure.
  *  - r.reply_type == AMQP_RESPONSE_NORMAL. Login completed successfully
  *  - r.reply_type == AMQP_RESPONSE_LIBRARY_EXCEPTION. In most cases errors
@@ -1875,10 +1894,10 @@ struct amqp_basic_properties_t_;
  * \param [in] routing_key the routing key to use when publishing the message
  * \param [in] mandatory indicate to the broker that the message MUST be routed
  *              to a queue. If the broker cannot do this it should respond with
- *              a basic.reject method.
+ *              a basic.return method.
  * \param [in] immediate indicate to the broker that the message MUST be delivered
  *              to a consumer immediately. If the broker cannot do this it should
- *              response with a basic.reject method.
+ *              response with a basic.return method.
  * \param [in] properties the properties associated with the message
  * \param [in] body the message body
  * \return AMQP_STATUS_OK on success, amqp_status_enum value on failure. Note
@@ -1931,7 +1950,7 @@ AMQP_CALL amqp_channel_close(amqp_connection_state_t state, amqp_channel_t chann
  * Closes the entire connection
  *
  * Implicitly closes all channels and informs the broker the connection
- * is being closed, after receiving acknowldgement from the broker it closes
+ * is being closed, after receiving acknowledgment from the broker it closes
  * the socket.
  *
  * \param [in] state the connection object
@@ -2222,7 +2241,7 @@ typedef struct amqp_envelope_t_ {
  * basic.deliver it reads that message, and returns. If any other method is
  * received before basic.deliver, this function will return an amqp_rpc_reply_t
  * with ret.reply_type == AMQP_RESPONSE_LIBRARY_EXCEPTION, and
- * ret.library_error == AMQP_STATUS_UNEXPECTED_FRAME. The caller should then
+ * ret.library_error == AMQP_STATUS_UNEXPECTED_STATE. The caller should then
  * call amqp_simple_wait_frame() to read this frame and take appropriate action.
  *
  * This function should be used after starting a consumer with the
@@ -2238,7 +2257,7 @@ typedef struct amqp_envelope_t_ {
  * \param [in] flags pass in 0. Currently unused.
  * \returns a amqp_rpc_reply_t object.  ret.reply_type == AMQP_RESPONSE_NORMAL
  *          on success. If ret.reply_type == AMQP_RESPONSE_LIBRARY_EXCEPTION, and
- *          ret.library_error == AMQP_STATUS_UNEXPECTED_FRAME, a frame other
+ *          ret.library_error == AMQP_STATUS_UNEXPECTED_STATE, a frame other
  *          than AMQP_BASIC_DELIVER_METHOD was received, the caller should call
  *          amqp_simple_wait_frame() to read this frame and take appropriate
  *          action.
@@ -2400,6 +2419,7 @@ amqp_socket_get_sockfd(amqp_socket_t *self);
  */
 AMQP_PUBLIC_FUNCTION
 amqp_socket_t *
+AMQP_CALL
 amqp_get_socket(amqp_connection_state_t state);
 
 /**
@@ -2414,6 +2434,7 @@ amqp_get_socket(amqp_connection_state_t state);
  */
 AMQP_PUBLIC_FUNCTION
 amqp_table_t *
+AMQP_CALL
 amqp_get_server_properties(amqp_connection_state_t state);
 
 /**
@@ -2430,7 +2451,116 @@ amqp_get_server_properties(amqp_connection_state_t state);
  */
 AMQP_PUBLIC_FUNCTION
 amqp_table_t *
+AMQP_CALL
 amqp_get_client_properties(amqp_connection_state_t state);
+
+/**
+ * Get the login handshake timeout.
+ *
+ * amqp_login and amqp_login_with_properties perform the login handshake with
+ * the broker.  This function returns the timeout associated with completing
+ * this operation from the client side. This value can be set by using the
+ * amqp_set_handshake_timeout.
+ *
+ * Note that the RabbitMQ broker has configurable timeout for completing the
+ * login handshake, the default is 10 seconds.  rabbitmq-c has a default of 12
+ * seconds.
+ *
+ * \param [in] state the connection object
+ * \return a struct timeval representing the current login timeout for the state
+ *  object. A NULL value represents an infinite timeout. The memory returned is
+ *  owned by the connection object.
+ *
+ * \since v0.9.0
+ */
+AMQP_PUBLIC_FUNCTION
+struct timeval *AMQP_CALL
+    amqp_get_handshake_timeout(amqp_connection_state_t state);
+
+/**
+ * Set the login handshake timeout.
+ *
+ * amqp_login and amqp_login_with_properties perform the login handshake with
+ * the broker. This function sets the timeout associated with completing this
+ * operation from the client side.
+ *
+ * The timeout must be set before amqp_login or amqp_login_with_properties is
+ * called to change from the default timeout.
+ *
+ * Note that the RabbitMQ broker has a configurable timeout for completing the
+ * login handshake, the default is 10 seconds. rabbitmq-c has a default of 12
+ * seconds.
+ *
+ * \param [in] state the connection object
+ * \param [in] timeout a struct timeval* representing new login timeout for the
+ *  state object. NULL represents an infinite timeout. The value of timeout is
+ *  copied internally, the caller is responsible for ownership of the passed in
+ *  pointer, it does not need to remain valid after this function is called.
+ * \return AMQP_STATUS_OK on success.
+ *
+ * \since v0.9.0
+ */
+AMQP_PUBLIC_FUNCTION
+int AMQP_CALL amqp_set_handshake_timeout(amqp_connection_state_t state,
+                                         struct timeval *timeout);
+
+/**
+ * Get the RPC timeout
+ *
+ * Gets the timeout for any RPC-style AMQP command (e.g., amqp_queue_declare).
+ * This timeout may be changed at any time by calling \amqp_set_rpc_timeout
+ * function with a new timeout. The timeout applies individually to each RPC
+ * that is made.
+ *
+ * The default value is NULL, or an infinite timeout.
+ *
+ * When an RPC times out, the function will return an error AMQP_STATUS_TIMEOUT,
+ * and the connection will be closed.
+ *
+ *\warning RPC-timeouts are an advanced feature intended to be used to detect
+ * dead connections quickly when the rabbitmq-c implementation of heartbeats
+ * does not work. Do not use RPC timeouts unless you understand the implications
+ * of doing so.
+ *
+ * \param [in] state the connection object
+ * \return a struct timeval representing the current RPC timeout for the state
+ * object. A NULL value represents an infinite timeout. The memory returned is
+ * owned by the connection object.
+ *
+ * \since v0.9.0
+ */
+AMQP_PUBLIC_FUNCTION
+struct timeval *AMQP_CALL amqp_get_rpc_timeout(amqp_connection_state_t state);
+
+/**
+ * Set the RPC timeout
+ *
+ * Sets the timeout for any RPC-style AMQP command (e.g., amqp_queue_declare).
+ * This timeout may be changed at any time by calling this function with a new
+ * timeout. The timeout applies individually to each RPC that is made.
+ *
+ * The default value is NULL, or an infinite timeout.
+ *
+ * When an RPC times out, the function will return an error AMQP_STATUS_TIMEOUT,
+ * and the connection will be closed.
+ *
+ *\warning RPC-timeouts are an advanced feature intended to be used to detect
+ * dead connections quickly when the rabbitmq-c implementation of heartbeats
+ * does not work. Do not use RPC timeouts unless you understand the implications
+ * of doing so.
+ *
+ * \param [in] state the connection object
+ * \param [in] timeout a struct timeval* representing new RPC timeout for the
+ * state object. NULL represents an infinite timeout. The value of timeout is
+ * copied internally, the caller is responsible for ownership of the passed
+ * pointer, it does not need to remain valid after this function is called.
+ * \return AMQP_STATUS_SUCCESS on success.
+ *
+ * \since v0.9.0
+ */
+AMQP_PUBLIC_FUNCTION
+int AMQP_CALL amqp_set_rpc_timeout(amqp_connection_state_t state,
+                                   struct timeval *timeout);
 
 AMQP_END_DECLS
 

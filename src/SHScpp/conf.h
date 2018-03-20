@@ -47,6 +47,7 @@ public:
 	int debugLevel;
 	bool load(std::string &path);
 	bool load(const char* path);
+	friend class ZB_init_readsn;
 };
 
 } /* namespace SHS */

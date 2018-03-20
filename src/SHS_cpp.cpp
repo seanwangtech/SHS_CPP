@@ -14,6 +14,7 @@ void test_serial();
 void test_json();
 void test_Regex();
 void test_basicSystemWithNAT();
+void test_basicSystemWithNATAndSerialPortGuaranteed();
 using namespace std;
 // 守护进程初始化函数
 void init_daemon()
@@ -57,7 +58,8 @@ int main(int argc,char *argv[]){
 	//test_ContainerMonitor();
 	//test_ATAnalyser();
 	//test_Regex();
-	test_basicSystemWithNAT();
+	//test_basicSystemWithNAT();
+	test_basicSystemWithNATAndSerialPortGuaranteed();
 /*
 	pthread_t listen_thread,listen_thread1;
 	rabbit_init_connect();
@@ -150,7 +152,6 @@ void test_Regex(){
 
 }
 void test_basicSystemWithNAT(){
-	SHS::Log::log.record("/**********The SHS service is starting...************/");
 	/*
 	 * the bootstrap should include four sessions orderly!
 	 * 1. configure the configuration file
@@ -165,6 +166,9 @@ void test_basicSystemWithNAT(){
 	//create configure object
 	SHS::Conf &conf= *new SHS::Conf();
 	conf.load("/etc/SHS/SHS.conf.json");
+	//configure logger
+	SHS::Log::log.setConf(conf);
+	SHS::Log::log.record("/**********The SHS service is starting...************/");
 
 	/****************************************************************************************************
 	 * session 2. start connections both to RabbitMQ and to serial port
@@ -225,6 +229,94 @@ void test_basicSystemWithNAT(){
 	//start AT analyser
 	SHS::ATAnalyser atAnalyser(container);
 	atAnalyser.startAnalyseAsThread(&serialLMQ);
+
+	//main thread sleep
+	while(1){
+		sleep(100);
+	}
+}
+
+void test_basicSystemWithNATAndSerialPortGuaranteed(){
+	/*
+	 * the bootstrap should include four sessions orderly!
+	 * 1. configure the configuration file
+	 * 2. start connections both to RabbitMQ and to serial port
+	 * 3. create a container for the analyser as workspace
+	 * 4. start analysers and monitors
+	 */
+
+	/****************************************************************************************************
+	 * session 1. configure the configuration file
+	 */
+	//create configure object
+	SHS::Conf &conf= *new SHS::Conf();
+	conf.load("/etc/SHS/SHS.conf.json");
+	//configure logger
+	SHS::Log::log.setConf(conf);
+	SHS::Log::log.record("/**********The SHS service is starting...************/");
+
+	/****************************************************************************************************
+	 * session 2. start connections both to RabbitMQ and to serial port
+	 */
+	/*
+	 * start rabbiMQ receiver and sender based on the connection and send the received message to a self-defined Message Queue
+	 * according to the rabbitMQ, we can use different channels from one connection in different thread.
+	 * however, due to the bug of the rabbitmq-C bug, we cannot use multi-channels in different thread from one channel,
+	 * so we have to create two connections for receiver and sender respectively.
+	 * I try to create only one channel, however, it tend to die when sender gets channel from the connection occasionally, so I change it to use two connections.
+	 *
+	 */
+
+	//Create a MyMQ for serial port and ATAnalyser
+	//start serial port according to the configure
+	SHS::MyMQ<string> serialLMQ;
+	SHS::SerialPort serial(conf);
+	serial.listenAsThread(&serialLMQ);
+	SHS::MyMQ<string> serialSMQ;
+	serial.startSenderAsThread(&serialSMQ);
+
+	//create 2 queue for RabbitMQ sender and Receiver
+	SHS::MyMQ<Json::Value> rabbitRMQ;
+	SHS::MyMQ<Json::Value> rabbitSMQ;
+
+
+
+
+	/****************************************************************************************************
+	 * session 3. create a container for the analyser as workspace
+	 */
+	//creat a basic container for its monitor and two analysers
+	SHS::Container container(conf);
+	container.setRabbitMQSenderMQ(&rabbitSMQ);
+	container.setSerialSenderMQ(&serialSMQ);
+	container.setRabbitMQAnalyserMQ(&rabbitRMQ);
+
+	/****************************************************************************************************
+	 * session 4. start analysers and monitors
+	 */
+	//start the container monitor
+	SHS::ContainerMonitor monitor(container);
+	monitor.startMonitorAsThread();
+
+	//start AT analyser
+	SHS::ATAnalyser atAnalyser(container);
+	atAnalyser.startAnalyseAsThread(&serialLMQ);
+
+	//start the rabbitMQ analyser
+	SHS::RabbitMQAnalyser analyser(&container);
+	analyser.startAnalyseAsThread(&rabbitRMQ);
+
+	/****************************************************************************************************
+	 * session extra. start rabbitMQ sender and receiver after all ther process, which help to enable serial without network
+	 */
+	SHS::RabbitMQConnection connR(conf);
+	SHS::RabbitMQReceiver receiver(connR);
+	receiver.startReceiveAsThread(conf,&rabbitRMQ);
+
+	//create a rabbitmq connection for sender
+	SHS::RabbitMQConnection connS(conf);
+	SHS::RabbitMQSender sender(connS);
+	sender.startSendAsThread(conf,&rabbitSMQ);
 
 	//main thread sleep
 	while(1){

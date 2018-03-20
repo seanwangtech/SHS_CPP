@@ -183,6 +183,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
   size_t body_offset;
   size_t usable_body_payload_size = state->frame_max - (HEADER_SIZE + FOOTER_SIZE);
   int res;
+  int flagz;
 
   amqp_basic_publish_t m;
   amqp_basic_properties_t default_properties;
@@ -208,7 +209,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
   }
 
   res = amqp_send_method_inner(state, channel, AMQP_BASIC_PUBLISH_METHOD, &m,
-                               AMQP_SF_MORE);
+                               AMQP_SF_MORE, amqp_time_infinite());
   if (res < 0) {
     return res;
   }
@@ -224,7 +225,12 @@ int amqp_basic_publish(amqp_connection_state_t state,
   f.payload.properties.body_size = body.len;
   f.payload.properties.decoded = (void *) properties;
 
-  res = amqp_send_frame_inner(state, &f, AMQP_SF_MORE);
+  if (body.len > 0) {
+    flagz = AMQP_SF_MORE;
+  } else {
+    flagz = AMQP_SF_NONE;
+  }
+  res = amqp_send_frame_inner(state, &f, flagz, amqp_time_infinite());
   if (res < 0) {
     return res;
   }
@@ -232,7 +238,6 @@ int amqp_basic_publish(amqp_connection_state_t state,
   body_offset = 0;
   while (body_offset < body.len) {
     size_t remaining = body.len - body_offset;
-    int flagz;
 
     if (remaining == 0) {
       break;
@@ -250,7 +255,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
     }
 
     body_offset += f.payload.body_fragment.len;
-    res = amqp_send_frame_inner(state, &f, flagz);
+    res = amqp_send_frame_inner(state, &f, flagz, amqp_time_infinite());
     if (res < 0) {
       return res;
     }
@@ -267,7 +272,11 @@ amqp_rpc_reply_t amqp_channel_close(amqp_connection_state_t state,
   amqp_method_number_t replies[2] = { AMQP_CHANNEL_CLOSE_OK_METHOD, 0};
   amqp_channel_close_t req;
 
-  req.reply_code = code;
+  if (code < 0 || code > UINT16_MAX) {
+    return amqp_rpc_reply_error(AMQP_STATUS_INVALID_PARAMETER);
+  }
+
+  req.reply_code = (uint16_t)code;
   req.reply_text.bytes = codestr;
   req.reply_text.len = sprintf(codestr, "%d", code);
   req.class_id = 0;
@@ -284,7 +293,11 @@ amqp_rpc_reply_t amqp_connection_close(amqp_connection_state_t state,
   amqp_method_number_t replies[2] = { AMQP_CONNECTION_CLOSE_OK_METHOD, 0};
   amqp_channel_close_t req;
 
-  req.reply_code = code;
+  if (code < 0 || code > UINT16_MAX) {
+    return amqp_rpc_reply_error(AMQP_STATUS_INVALID_PARAMETER);
+  }
+
+  req.reply_code = (uint16_t)code;
   req.reply_text.bytes = codestr;
   req.reply_text.len = sprintf(codestr, "%d", code);
   req.class_id = 0;
@@ -345,4 +358,41 @@ int amqp_basic_nack(amqp_connection_state_t state, amqp_channel_t channel,
   req.multiple = multiple;
   req.requeue = requeue;
   return amqp_send_method(state, channel, AMQP_BASIC_NACK_METHOD, &req);
+}
+
+struct timeval *amqp_get_handshake_timeout(amqp_connection_state_t state) {
+  return state->handshake_timeout;
+}
+
+int amqp_set_handshake_timeout(amqp_connection_state_t state,
+                               struct timeval *timeout) {
+  if (timeout) {
+    if (timeout->tv_sec < 0 || timeout->tv_usec < 0) {
+      return AMQP_STATUS_INVALID_PARAMETER;
+    }
+    state->internal_handshake_timeout = *timeout;
+    state->handshake_timeout = &state->internal_handshake_timeout;
+  } else {
+    state->handshake_timeout = NULL;
+  }
+
+  return AMQP_STATUS_OK;
+}
+
+struct timeval * amqp_get_rpc_timeout(amqp_connection_state_t state) {
+  return state->rpc_timeout;
+}
+
+int amqp_set_rpc_timeout(amqp_connection_state_t state,
+                         struct timeval *timeout) {
+  if (timeout) {
+    if (timeout->tv_sec < 0 || timeout->tv_usec < 0) {
+      return AMQP_STATUS_INVALID_PARAMETER;
+    }
+    state->rpc_timeout = &state->internal_rpc_timeout;
+    *state->rpc_timeout = *timeout;
+  } else {
+    state->rpc_timeout = NULL;
+  }
+  return AMQP_STATUS_OK;
 }

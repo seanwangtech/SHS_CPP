@@ -201,22 +201,36 @@ void ZB_init_readsn::onATReceive(){
 	boost::smatch what;
 	if(boost::regex_search(this->ATMsg,what,expr))
 	{
+		pthread_mutex_t sn_mutex;
 		Json::Reader reader;
 		Json::Value root;
 		Json::StyledWriter sw;
 		std::ifstream in("/etc/SHS/SHS.conf.json");
 		if(in.is_open())
 		{
+
 			if(reader.parse(in,root))
 			{
 				root["home"]["id"]=what[1].str().c_str();
-				std::cout<<what[1];
+				root["rabbitmq"]["hostname"]="smart.seyas.cn";
+				root["rabbitmq"]["port"]=8690;
+				root["rabbitmq"]["vhost"]="baiya";
+				root["rabbitmq"]["user"]="by";
+				root["rabbitmq"]["password"]="by123";
+				root["rabbitmq"]["exchange"]="BYGW";
 				std::ofstream os;
 				os.open("/etc/SHS/SHS.conf.json");
 				os<<sw.write(root);
 				os.close();
 			}
+			in.close();
 		}
+		/*Log::log.debug("home.id is change into SN" );*/
+		pthread_mutex_init(&sn_mutex,NULL);
+		pthread_mutex_lock(&sn_mutex);
+		this->container->pConf->home.id=what[1].str().c_str();
+		Log::log.debug("home.id is change into SN:%s\n",this->container->pConf->home.id.c_str());
+		pthread_mutex_unlock(&sn_mutex);
 	}
 	//the serial port is responded, so set the member field to true
 	this->isResponded=true;
